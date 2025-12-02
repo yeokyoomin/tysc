@@ -4,9 +4,9 @@
 
 **Zero-dependency TypeScript Validation Library**
 
-[![npm version](https://img.shields.io/npm/v/tysc?color=blue&style=flat-square)](https://www.npmjs.com/package/tysc)
+[![npm version](https://img.shields.io/npm/v/tysc?color=blue&style=flat-square)](https://www.npmjs.com/package/tysc)  
 [![dependencies](https://img.shields.io/badge/dependencies-0-brightgreen?style=flat-square)](https://packagephobia.com/result?p=tysc)
-[![license](https://img.shields.io/npm/l/tysc?style=flat-square)](https://github.com/your-id/tysc/blob/main/LICENSE)
+[![license](https://img.shields.io/npm/l/tysc?style=flat-square)](https://github.com/yeokyoomin/tysc/blob/main/LICENSE)
 [![size](https://img.shields.io/bundlephobia/minzip/tysc?style=flat-square&color=orange)](https://bundlephobia.com/package/tysc)
 
 </div>
@@ -20,6 +20,15 @@ Unlike other libraries, `tysc` has **Zero Dependencies** and provides **Source L
 
 ---
 
+## 🚀 What's New in v1.1.0?
+
+- **⚡ Performance Boost**: Validations are significantly faster thanks to the optimized strategy pattern and memory management.
+- **📦 Array Support**: Added `@IsArray`, `@ArrayMinSize`, and `@ArrayMaxSize`.
+- **🔤 String Validators**: Added `@IsEmail`, `@Length`, and `@Matches`.
+- **❓ Optional Fields**: Added `@IsOptional` to skip validation if the value is missing.
+
+---
+
 ## ✨ Features
 
 - 🪶 **Zero Dependencies**: Ultra-lightweight. Perfect for Serverless (AWS Lambda, Cloudflare Workers).
@@ -27,6 +36,21 @@ Unlike other libraries, `tysc` has **Zero Dependencies** and provides **Source L
 - 🎨 **Modern Decorators**: Clean, OOP-style validation logic.
 - 🧩 **Nested Validation**: Validates complex objects recursively.
 - 🛠 **Custom Rules**: Define your own validation logic inline.
+
+---
+
+## ⚡ Performance Benchmark
+
+Benchmark conducted on **Intel i7-12700F, 1M iterations**.
+
+| Library         |    Ops/Sec    | Relative Speed |        Style        |
+| :-------------- | :-----------: | :------------: | :-----------------: |
+| **zod**         |  24,055,462   |     21.3x      | Schema (Functional) |
+| **tysc** 🚀     | **4,293,957** |    **3.8x**    | **Decorator (OOP)** |
+| class-validator |   1,126,781   |       1x       |   Decorator (OOP)   |
+
+> **💡 Insight:**
+> While `zod` is the fastest due to its functional nature, **`tysc` is approx. 4x faster than `class-validator`**, making it the **fastest choice for Decorator/Class-based validation**.
 
 ---
 
@@ -129,7 +153,7 @@ class User {
 }
 ```
 
-## 2. Custom Logic (`@Custom`)
+### 2. Custom Logic (`@Custom`)
 
 Create your own validation rules instantly without boilerplate.
 
@@ -139,6 +163,38 @@ import { Custom } from "tysc";
 class Post {
   @Custom((val) => val.includes("#"), { message: "Must contain a hashtag" })
   content: string;
+}
+```
+
+### 3. Arrays (`@IsArray`)
+
+Validate lists of items.
+
+```ts
+import { IsArray, ArrayMinSize, IsString } from "tysc";
+
+class Post {
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  tags: string[];
+}
+```
+
+### 4. Optional Fields (`@IsOptional`)
+
+skip validation if the value is `null` or `undefined`.
+
+```ts
+import { IsOptional, IsString } from "tysc";
+
+class User {
+  @IsString()
+  name: string; // Required
+
+  @IsOptional()
+  @IsString()
+  bio?: string; // Optional
 }
 ```
 
@@ -154,6 +210,8 @@ class Post {
 
 * `@IsBoolean(options?)`: Checks if the value is a boolean (true/false).
 
+* `@IsOptional(options?)`: Skips validation if value is null or undefined.
+
 ### Numeric
 
 - `@Min(min: number, options?)`: Checks if number is >= min.
@@ -164,13 +222,27 @@ class Post {
 
 - `@IsPositive(options?)`: Checks if number is > 0.
 
+### String
+
+- `@IsEmail(options?)`: Checks if the string is an email.
+
+- `@Length(min, max, options?)`: Checks string length.
+
+- `@Matches(regex, options?)`: Checks if string matches tha pattern.
+
+### Array
+
+- `@IsArray(options?)`: Checks if the value is an array.
+
+- `@ArrayMinSize(min:number, options?)`: Checks array length >= min.
+
+- `@ArrayMaxSize(max:number, options?)`: Checks array length <= max.
+
 ### Advanced
 
 - `@ValidateNested()`: Recursively validates child objects.
 
 - `@Custom(validatorFn, options?)`: Runs a custom validation function.
-
-- `@IsOptional()`: Perform inspections selectively.
 
 ---
 

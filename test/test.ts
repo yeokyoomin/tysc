@@ -1,25 +1,24 @@
-// test.ts
-import {
-    IsString, validate, IsOptional
-} from "../src";
+import { IsArray, ArrayMinSize, ArrayMaxSize, validate } from "../src";
 
-class UpdateProfile {
-    @IsString()
-    name: string;
+class ProductDto {
+    @IsArray()
+    @ArrayMinSize(1)
+    @ArrayMaxSize(3)
+    tags: string[];
 
-    @IsOptional()
-    @IsString()
-    bio?: string | undefined;
-
-    constructor(name: string, bio?: string) {
-        this.name = name;
-        this.bio = bio;
+    constructor(tags: any) {
+        this.tags = tags;
     }
 }
 
-console.log("🚀 Optional Test");
-const user1 = new UpdateProfile("Admin");
-console.log(validate(user1));
+console.log("🚀 [tysc] Array Validation Test\n");
 
-const user2 = new UpdateProfile("Admin", 123 as any);
-console.log(validate(user2));
+const badType = new ProductDto("clothes, summer");
+console.log("❌ Case 1 (Not Array):", JSON.stringify(validate(badType), null, 2));
+
+const tooMany = new ProductDto(["A", "B", "C", "D"]);
+console.log("\n❌ Case 2 (Too Many):", JSON.stringify(validate(tooMany), null, 2));
+
+const good = new ProductDto(["Summer", "Sale"]);
+const res = validate(good);
+console.log("\n✅ Case 3 (Good):", res.length === 0 ? "Pass!" : "Fail...");

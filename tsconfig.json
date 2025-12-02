@@ -38,7 +38,7 @@
     "skipLibCheck": true,
     //decorator & meta data
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
+    "emitDecoratorMetadata": false,
   },
   "include": [
     "src/**/*",

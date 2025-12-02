@@ -1,9 +1,9 @@
 import { storage } from "./Storage";
 import { ValidationError } from "./types";
+import { validationStrategies } from "./strategies";
 
 export class Validator {
     validate(target_obj: object): ValidationError[] {
-
         const _obj = target_obj as any;
 
         if (!_obj || typeof _obj !== 'object') {
@@ -21,7 +21,6 @@ export class Validator {
             const _value = _obj[prop];
 
             const isOptional = propRules.some(rule => rule.type === 'IsOptional');
-
             if ((_value === undefined || _value === null) && isOptional) {
                 continue;
             }
@@ -30,7 +29,9 @@ export class Validator {
             let childrenErrors: ValidationError[] = [];
 
             for (const rule of propRules) {
-                if (rule.type == "ValidateNested") {
+                if (rule.type === 'IsOptional') continue;
+
+                if (rule.type === "ValidateNested") {
                     if (_value && typeof _value === 'object') {
                         const nestedValidator = new Validator();
                         childrenErrors = nestedValidator.validate(_value);
@@ -38,62 +39,16 @@ export class Validator {
                     continue;
                 }
 
-                let isValid = true;
-                let message = rule.message;
+                const strategy = validationStrategies[rule.type];
 
-                switch (rule.type) {
-                    case "IsString":
-                        isValid = typeof _value === "string";
-                        if (!isValid && !message) message = `${prop} must be string`;
-                        break;
-                    case "IsNumber":
-                        isValid = typeof _value == "number";
-                        if (!isValid && !message) message = `${prop} must be number`;
-                        break;
-                    case "IsPositive":
-                        isValid = typeof _value == "number" && _value > 0;
-                        if (!isValid && !message) message = `${prop} must be a positive number`
-                        break;
-                    case "IsBoolean":
-                        isValid = typeof _value == "boolean";
-                        if (!isValid && !message) message = `${prop} must be a boolean.`
-                        break;
-                    case "IsInt":
-                        isValid = typeof _value == "number" && Number.isInteger(_value);
-                        if (!isValid && !message) message = `${prop} must be an integer`
-                        break;
-                    case "Max": {
-                        const [max] = rule.constraints || [0];
-                        isValid = typeof _value == "number" && _value <= max;
-                        if (!isValid && !message) message = `${prop} must be at most ${max}`
-                        break;
+                if (strategy) {
+                    const errorMessage = strategy(_value, rule, prop);
+                    
+                    if (errorMessage !== null) {
+                        failedRules[rule.type] = rule.message || errorMessage;
                     }
-                    case "Min": {
-                        const [min] = rule.constraints || [0];
-                        isValid = typeof _value === "number" && _value >= min;
-                        if (!isValid && !message) message = `${prop} must be at least ${min}`;
-                        break;
-                    }
-                    case 'Custom': {
-                        const [validatorFn] = rule.constraints || [];
-
-                        if (typeof validatorFn === 'function') {
-                            try {
-                                isValid = validatorFn(_value);
-                            } catch (e) {
-                                isValid = false;
-                            }
-                        }
-
-                        if (!isValid && !message) {
-                            message = `${prop} failed custom validation`;
-                        }
-                        break;
-                    }
-                }
-
-                if (!isValid) {
-                    failedRules[rule.type] = message || "Validation failed";
+                } else {
+                    console.warn(`No validation strategy found for rule type: ${rule.type}`);
                 }
             }
 
@@ -114,7 +69,6 @@ export class Validator {
 
                 errors.push(errorResult);
             }
-
         }
 
         return errors;
