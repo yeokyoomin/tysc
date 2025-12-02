@@ -2,76 +2,98 @@ import { storage } from "./Storage";
 import { ValidationError } from "./types";
 import { validationStrategies } from "./strategies";
 
-export class Validator {
-    validate(target_obj: object): ValidationError[] {
-        const _obj = target_obj as any;
+type ValidatorExecutor = (obj: any, errors: ValidationError[]) => void;
 
-        if (!_obj || typeof _obj !== 'object') {
+export class Validator {
+    private static cache = new Map<Function, ValidatorExecutor[]>();
+
+    validate(target_obj: object): ValidationError[] {
+        if (!target_obj || typeof target_obj !== 'object') {
             return [];
         }
 
-        const target = _obj.constructor;
-        const rules = storage.getRules(target);
+        const targetConstructor = target_obj.constructor;
+
+        let executors = Validator.cache.get(targetConstructor);
+
+        if (!executors) {
+            executors = this.compile(targetConstructor);
+            Validator.cache.set(targetConstructor, executors);
+        }
+
         const errors: ValidationError[] = [];
 
-        const properties = new Set(rules.map(r => r.propertyKey));
-
-        for (const prop of properties) {
-            const propRules = rules.filter(r => r.propertyKey === prop);
-            const _value = _obj[prop];
-
-            const isOptional = propRules.some(rule => rule.type === 'IsOptional');
-            if ((_value === undefined || _value === null) && isOptional) {
-                continue;
-            }
-
-            const failedRules: { [key: string]: string } = {};
-            let childrenErrors: ValidationError[] = [];
-
-            for (const rule of propRules) {
-                if (rule.type === 'IsOptional') continue;
-
-                if (rule.type === "ValidateNested") {
-                    if (_value && typeof _value === 'object') {
-                        const nestedValidator = new Validator();
-                        childrenErrors = nestedValidator.validate(_value);
-                    }
-                    continue;
-                }
-
-                const strategy = validationStrategies[rule.type];
-
-                if (strategy) {
-                    const errorMessage = strategy(_value, rule, prop);
-                    
-                    if (errorMessage !== null) {
-                        failedRules[rule.type] = rule.message || errorMessage;
-                    }
-                } else {
-                    console.warn(`No validation strategy found for rule type: ${rule.type}`);
-                }
-            }
-
-            if (Object.keys(failedRules).length > 0 || childrenErrors.length > 0) {
-                const errorResult: ValidationError = { property: prop };
-                const firstRule = propRules[0];
-
-                if (firstRule && firstRule.at) {
-                    errorResult.at = firstRule.at;
-                }
-
-                if (Object.keys(failedRules).length > 0) {
-                    errorResult.failedRules = failedRules;
-                }
-                if (childrenErrors.length > 0) {
-                    errorResult.children = childrenErrors;
-                }
-
-                errors.push(errorResult);
+        if (executors) {
+            for (const executor of executors) {
+                executor(target_obj, errors);
             }
         }
 
         return errors;
+    }
+
+    private compile(target: Function): ValidatorExecutor[] {
+        const rules = storage.getRules(target);
+        const executors: ValidatorExecutor[] = [];
+
+        const props = new Set(rules.map(r => r.propertyKey));
+
+        for (const prop of props) {
+            const propRules = rules.filter(r => r.propertyKey === prop);
+            const isOptional = propRules.some(r => r.type === 'IsOptional');
+
+            const activeRules = propRules.filter(r => r.type !== 'IsOptional');
+
+            executors.push((obj: any, errors: ValidationError[]) => {
+                const value = obj[prop];
+
+                if ((value === undefined || value === null) && isOptional) {
+                    return;
+                }
+
+                const failedRules: { [key: string]: string } = {};
+                let childrenErrors: ValidationError[] = [];
+
+                for (const rule of activeRules) {
+                    if (rule.type === "ValidateNested") {
+                        if (value && typeof value === 'object') {
+                            const nestedErrors = new Validator().validate(value);
+                            if (nestedErrors.length > 0) {
+                                childrenErrors = nestedErrors;
+                            }
+                        }
+                        continue;
+                    }
+
+                    const strategy = validationStrategies[rule.type];
+                    if (strategy) {
+                        const errorMsg = strategy(value, rule, prop);
+                        if (errorMsg !== null) {
+                            failedRules[rule.type] = rule.message || errorMsg;
+                        }
+                    }
+                }
+
+                if (Object.keys(failedRules).length > 0 || childrenErrors.length > 0) {
+                    const errorResult: ValidationError = { property: prop };
+
+                    const firstRule = activeRules[0];
+                    if (firstRule?.at) {
+                        errorResult.at = firstRule.at;
+                    }
+
+                    if (Object.keys(failedRules).length > 0) {
+                        errorResult.failedRules = failedRules;
+                    }
+                    if (childrenErrors.length > 0) {
+                        errorResult.children = childrenErrors;
+                    }
+                    errors.push(errorResult);
+                }
+            });
+        }
+
+        return executors;
     }
 }
 

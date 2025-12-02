@@ -20,12 +20,9 @@ Unlike other libraries, `tysc` has **Zero Dependencies** and provides **Source L
 
 ---
 
-## 🚀 What's New in v1.1.0?
+## 🚀 What's New in v1.2.0?
 
-- **⚡ Performance Boost**: Validations are significantly faster thanks to the optimized strategy pattern and memory management.
-- **📦 Array Support**: Added `@IsArray`, `@ArrayMinSize`, and `@ArrayMaxSize`.
-- **🔤 String Validators**: Added `@IsEmail`, `@Length`, and `@Matches`.
-- **❓ Optional Fields**: Added `@IsOptional` to skip validation if the value is missing.
+- **⚡ Performance Boost**: Performance has improved nearly threefold. For details, check the Performance Benchmark tab.
 
 ---
 
@@ -41,16 +38,17 @@ Unlike other libraries, `tysc` has **Zero Dependencies** and provides **Source L
 
 ## ⚡ Performance Benchmark
 
-Benchmark conducted on **Intel i7-12700F, 1M iterations**.
+Benchmark conducted on **Intel i7-12900F, 1M iterations**.
 
-| Library         |    Ops/Sec    | Relative Speed |        Style        |
-| :-------------- | :-----------: | :------------: | :-----------------: |
-| **zod**         |  24,055,462   |     21.3x      | Schema (Functional) |
-| **tysc** 🚀     | **4,293,957** |    **3.8x**    | **Decorator (OOP)** |
-| class-validator |   1,126,781   |       1x       |   Decorator (OOP)   |
+| Library         |    Ops/Sec     | Relative Speed |        Style        |
+| :-------------- | :------------: | :------------: | :-----------------: |
+| **zod**         |   23,974,893   |     22.7x      | Schema (Functional) |
+| **tysc** 🚀     | **11,502,066** |   **10.9x**    | **Decorator (OOP)** |
+| class-validator |   1,054,868    |       1x       |   Decorator (OOP)   |
 
-> **💡 Insight:**
-> While `zod` is the fastest due to its functional nature, **`tysc` is approx. 4x faster than `class-validator`**, making it the **fastest choice for Decorator/Class-based validation**.
+> **🚀 Major Update (v1.2.0):**
+> Introduced a **JIT Compilation Engine**.
+> `tysc` is now **~11x faster than `class-validator`**, making it the **fastest decorator-based validation library** in the world.
 
 ---
 
