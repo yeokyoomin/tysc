@@ -20,6 +20,14 @@ Unlike other libraries, `tysc` has **Zero Dependencies** and provides **Source L
 
 ---
 
+## 🚀 What's New in v2.0.0? (Major Update)
+
+- **✨ Full Array Support**: Added `{ each: true }` for verifying individual array items.
+- **⚡ JIT Compilation**: The validation engine has been rewritten for maximum performance.
+- **🛠️ Stability**: Fixed logical inconsistencies in rule execution order and `at` tracking.
+
+---
+
 ## ✨ Why Tysc?
 
 - 🚀 **Unrivaled Performance**: **15.2x faster** than `class-validator`. The fastest decorator-based library in existence.
@@ -32,7 +40,7 @@ Unlike other libraries, `tysc` has **Zero Dependencies** and provides **Source L
 
 ## ⚡ Performance Benchmark
 
-Benchmark conducted on **Intel Core i7-13700F, 10M iterations (v1.3.8)**.
+Benchmark conducted on **Intel Core i7-13700F, 10M iterations (v2.0.0)**.
 
 | Library         |    Ops/Sec     | Relative Speed |        Style        |
 | :-------------- | :------------: | :------------: | :-----------------: |
@@ -41,7 +49,7 @@ Benchmark conducted on **Intel Core i7-13700F, 10M iterations (v1.3.8)**.
 | class-validator |   1,230,639    |       1x       |   Decorator (OOP)   |
 
 > **🚀 Breaking the Limit:**
-> Through **Zero-Allocation Optimization**, `tysc` v1.3.8 is now **~15.2x faster than `class-validator`**.
+> Through **Zero-Allocation Optimization**, `tysc` v2.0.0 is now **~15.2x faster than `class-validator`**.
 
 ---
 
@@ -187,8 +195,8 @@ interface ValidationOptions {
 // 1. Custom Message
 @IsString({ message: "Please enter a valid name" })
 
-// 2. Array Validation (Coming in v1.4)
-// @IsString({ each: true }) // Validates that every item in the array is a string
+// 2. Array Validation
+@IsString({ each: true }) // Validates that every item in the array is a string
 ```
 
 ---

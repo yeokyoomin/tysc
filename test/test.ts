@@ -1,24 +1,19 @@
-import { IsArray, ArrayMinSize, ArrayMaxSize, validate } from "../src";
+import { IsString, IsArray, validate } from "../src";
 
-class ProductDto {
+class Post {
     @IsArray()
-    @ArrayMinSize(1)
-    @ArrayMaxSize(3)
+    @IsString({ each: true, message: "태그는 문자열이어야 합니다" }) // ✨ 각 요소가 문자열인지 확인
     tags: string[];
 
-    constructor(tags: any) {
+    constructor(tags: any[]) {
         this.tags = tags;
     }
 }
 
-console.log("🚀 [tysc] Array Validation Test\n");
+console.log("🚀 v1.4.0 each: true Test");
 
-const badType = new ProductDto("clothes, summer");
-console.log("❌ Case 1 (Not Array):", JSON.stringify(validate(badType), null, 2));
+// [Case 1] 중간에 숫자가 섞여있음
+const badPost = new Post(["HTML", 123, "CSS"]);
+const res = validate(badPost);
 
-const tooMany = new ProductDto(["A", "B", "C", "D"]);
-console.log("\n❌ Case 2 (Too Many):", JSON.stringify(validate(tooMany), null, 2));
-
-const good = new ProductDto(["Summer", "Sale"]);
-const res = validate(good);
-console.log("\n✅ Case 3 (Good):", res.length === 0 ? "Pass!" : "Fail...");
+console.log(JSON.stringify(res, null, 2));
