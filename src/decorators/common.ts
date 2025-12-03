@@ -5,7 +5,7 @@ import { ValidationOptions } from "../core/types";
 export function createDecorator(type: string, constraints: any[] = [], options?: ValidationOptions) {
     const location = getCallerLocation();
     return function (target: Object, propertyKey: string) {
-        storage.addrule({
+        storage.addRule({
             target: target.constructor,
             propertyKey: propertyKey,
             type: type,

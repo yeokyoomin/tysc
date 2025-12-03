@@ -1,21 +1,21 @@
-export type ValidationError = {
-    property: string;
-    at?: string;
-    failedRules?: { [rule: string]: string };
-    children?: ValidationError[];
+export interface ValidationOptions {
+    message?: string | undefined;
+    each?: boolean | undefined;
 }
 
-export type ValidationRuleTemplate = {
-    target: object;
-    propertyKey: string;
+export interface ValidationRuleTemplate {
+    target: Function;
     type: string;
+    propertyKey: string;
     constraints?: any[] | undefined;
     message?: string | undefined;
-    options?: ValidationOptions;
-    at?: string;
+    options?: ValidationOptions | undefined;
+    at?: string | undefined;
 }
 
-export interface ValidationOptions {
-    message?: string;
-    each?: boolean;
+export interface ValidationError {
+    property: string;
+    failedRules?: { [key: string]: string } | undefined;
+    children?: ValidationError[] | undefined;
+    at?: string | undefined;
 }

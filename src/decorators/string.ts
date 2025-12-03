@@ -1,5 +1,6 @@
 import { createDecorator } from "./common";
-import { ValidationOptions } from "../core/types"
+import { ValidationOptions } from "../core/types";
+
 
 export function IsString(options?: ValidationOptions) {
     return createDecorator('IsString', [], options);

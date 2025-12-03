@@ -1,5 +1,5 @@
 import { storage } from "./Storage";
-import { ValidationError } from "./types";
+import { ValidationError, ValidationOptions } from "./types";
 import { validationStrategies } from "./strategies";
 
 type ValidationContext = {
@@ -20,7 +20,6 @@ export class Validator {
         }
 
         const targetConstructor = target_obj.constructor;
-
         let executors = Validator.cache.get(targetConstructor);
 
         if (!executors) {
@@ -43,17 +42,14 @@ export class Validator {
     private compile(target: Function): PropExecutor[] {
         const rules = storage.getRules(target);
         const executors: PropExecutor[] = [];
-
         const props = new Set(rules.map(r => r.propertyKey));
 
         for (const prop of props) {
             const propRules = rules.filter(r => r.propertyKey === prop);
-
             const isOptional = propRules.some(r => r.type === 'IsOptional');
 
             let atLocation: string | undefined;
             const firstRuleWithAt = propRules.find(r => r.at && r.type !== 'IsOptional');
-
             if (firstRuleWithAt) {
                 atLocation = firstRuleWithAt.at;
             }
@@ -63,7 +59,15 @@ export class Validator {
             for (const rule of propRules) {
                 if (rule.type === 'IsOptional') continue;
 
-                const isEach = rule.options && rule.options.each;
+                let options = rule.options;
+                if (!options && rule.constraints && rule.constraints.length > 0) {
+                    const lastArg = rule.constraints[rule.constraints.length - 1];
+                    if (lastArg && typeof lastArg === 'object' && !Array.isArray(lastArg) && (lastArg.each !== undefined || lastArg.message)) {
+                        options = lastArg as ValidationOptions;
+                    }
+                }
+
+                const isEach = options && options.each;
 
                 if (rule.type === "ValidateNested") {
                     actions.push((val, ctx) => {
@@ -92,7 +96,7 @@ export class Validator {
                 const strategy = validationStrategies[rule.type];
                 if (strategy) {
                     const ruleType = rule.type;
-                    const ruleMessage = rule.message;
+                    const ruleMessage = rule.message || (options ? options.message : undefined);
 
                     actions.push((val, ctx) => {
                         if (isEach && Array.isArray(val)) {

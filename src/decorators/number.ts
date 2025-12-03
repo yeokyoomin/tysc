@@ -1,5 +1,5 @@
 import { createDecorator } from "./common";
-import { ValidationOptions } from "../core/types"
+import { ValidationOptions } from "../core/types";
 
 export function IsNumber(options?: ValidationOptions) {
     return createDecorator('IsNumber', [], options);

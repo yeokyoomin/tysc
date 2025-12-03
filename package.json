@@ -17,7 +17,7 @@
   "homepage": "https://github.com/yeokyoomin/tysc#readme",
   "scripts": {
     "build": "tsc",
-    "test": "ts-node ./test/test.ts"
+    "test": "ts-node ./test/integration.ts"
   },
   "keywords": [
     "typescript",
