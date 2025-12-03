@@ -11,6 +11,7 @@ export function createDecorator(type: string, constraints: any[] = [], options?:
             type: type,
             constraints: constraints,
             message: options?.message,
+            options: options,
             at: location
         });
     };

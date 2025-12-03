@@ -1,6 +1,6 @@
 {
   "name": "tysc",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Zero-dependency TypeScript validation library with click-to-jump debugging (source location tracking). Supports custom rules & nested objects.",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
