@@ -2,10 +2,17 @@ import { storage } from "./Storage";
 import { ValidationError } from "./types";
 import { validationStrategies } from "./strategies";
 
-type ValidatorExecutor = (obj: any, errors: ValidationError[]) => void;
+type ValidationContext = {
+    failedRules: { [key: string]: string };
+    childrenErrors: ValidationError[];
+};
+
+type ValidationAction = (value: any, context: ValidationContext) => void;
+
+type PropExecutor = (obj: any, errors: ValidationError[]) => void;
 
 export class Validator {
-    private static cache = new Map<Function, ValidatorExecutor[]>();
+    private static cache = new Map<Function, PropExecutor[]>();
 
     validate(target_obj: object): ValidationError[] {
         if (!target_obj || typeof target_obj !== 'object') {
@@ -13,7 +20,6 @@ export class Validator {
         }
 
         const targetConstructor = target_obj.constructor;
-
         let executors = Validator.cache.get(targetConstructor);
 
         if (!executors) {
@@ -23,8 +29,9 @@ export class Validator {
 
         const errors: ValidationError[] = [];
 
-        if (executors) {
-            for (const executor of executors) {
+        for (let i = 0; i < executors.length; i++) {
+            const executor = executors[i];
+            if (executor) {
                 executor(target_obj, errors);
             }
         }
@@ -32,17 +39,49 @@ export class Validator {
         return errors;
     }
 
-    private compile(target: Function): ValidatorExecutor[] {
+    private compile(target: Function): PropExecutor[] {
         const rules = storage.getRules(target);
-        const executors: ValidatorExecutor[] = [];
-
+        const executors: PropExecutor[] = [];
         const props = new Set(rules.map(r => r.propertyKey));
 
         for (const prop of props) {
             const propRules = rules.filter(r => r.propertyKey === prop);
             const isOptional = propRules.some(r => r.type === 'IsOptional');
-
+            
             const activeRules = propRules.filter(r => r.type !== 'IsOptional');
+            const firstActiveRule = activeRules[0];
+            const atLocation = firstActiveRule ? firstActiveRule.at : undefined;
+
+            const actions: ValidationAction[] = [];
+
+            for (const rule of propRules) {
+                if (rule.type === 'IsOptional') continue;
+
+                if (rule.type === "ValidateNested") {
+                    actions.push((val, ctx) => {
+                        if (val && typeof val === 'object') {
+                            const nestedErrors = new Validator().validate(val);
+                            if (nestedErrors.length > 0) {
+                                ctx.childrenErrors.push(...nestedErrors);
+                            }
+                        }
+                    });
+                    continue;
+                }
+
+                const strategy = validationStrategies[rule.type];
+                if (strategy) {
+                    const ruleType = rule.type;
+                    const ruleMessage = rule.message;
+                    
+                    actions.push((val, ctx) => {
+                        const errorMsg = strategy(val, rule, prop);
+                        if (errorMsg !== null) {
+                            ctx.failedRules[ruleType] = ruleMessage ?? errorMsg;
+                        }
+                    });
+                }
+            }
 
             executors.push((obj: any, errors: ValidationError[]) => {
                 const value = obj[prop];
@@ -51,43 +90,32 @@ export class Validator {
                     return;
                 }
 
-                const failedRules: { [key: string]: string } = {};
-                let childrenErrors: ValidationError[] = [];
+                const context: ValidationContext = {
+                    failedRules: {},
+                    childrenErrors: []
+                };
 
-                for (const rule of activeRules) {
-                    if (rule.type === "ValidateNested") {
-                        if (value && typeof value === 'object') {
-                            const nestedErrors = new Validator().validate(value);
-                            if (nestedErrors.length > 0) {
-                                childrenErrors = nestedErrors;
-                            }
-                        }
-                        continue;
-                    }
-
-                    const strategy = validationStrategies[rule.type];
-                    if (strategy) {
-                        const errorMsg = strategy(value, rule, prop);
-                        if (errorMsg !== null) {
-                            failedRules[rule.type] = rule.message || errorMsg;
-                        }
+                for (let i = 0; i < actions.length; i++) {
+                    const action = actions[i];
+                    if (action) {
+                        action(value, context);
                     }
                 }
 
-                if (Object.keys(failedRules).length > 0 || childrenErrors.length > 0) {
+                if (Object.keys(context.failedRules).length > 0 || context.childrenErrors.length > 0) {
                     const errorResult: ValidationError = { property: prop };
-
-                    const firstRule = activeRules[0];
-                    if (firstRule?.at) {
-                        errorResult.at = firstRule.at;
+                    
+                    if (atLocation) {
+                        errorResult.at = atLocation;
                     }
 
-                    if (Object.keys(failedRules).length > 0) {
-                        errorResult.failedRules = failedRules;
+                    if (Object.keys(context.failedRules).length > 0) {
+                        errorResult.failedRules = context.failedRules;
                     }
-                    if (childrenErrors.length > 0) {
-                        errorResult.children = childrenErrors;
+                    if (context.childrenErrors.length > 0) {
+                        errorResult.children = context.childrenErrors;
                     }
+
                     errors.push(errorResult);
                 }
             });
