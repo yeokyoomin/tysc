@@ -20,7 +20,7 @@ Unlike other libraries, `tysc` has **Zero Dependencies** and provides **Source L
 
 ---
 
-## 🚀 What's New in v1.3.4?
+## 🚀 What's New in v1.3.7?
 
 - **⚡ Performance Boost**: Performance has been improved by modifying the validator structure. For details, please check the Benchmark tab.
 
