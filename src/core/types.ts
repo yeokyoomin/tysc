@@ -11,5 +11,11 @@ export type ValidationRuleTemplate = {
     type: string;
     constraints?: any[] | undefined;
     message?: string | undefined;
+    options?: ValidationOptions;
     at?: string;
+}
+
+export interface ValidationOptions {
+    message?: string;
+    each?: boolean;
 }

@@ -20,6 +20,7 @@ export class Validator {
         }
 
         const targetConstructor = target_obj.constructor;
+
         let executors = Validator.cache.get(targetConstructor);
 
         if (!executors) {
@@ -42,24 +43,43 @@ export class Validator {
     private compile(target: Function): PropExecutor[] {
         const rules = storage.getRules(target);
         const executors: PropExecutor[] = [];
+
         const props = new Set(rules.map(r => r.propertyKey));
 
         for (const prop of props) {
             const propRules = rules.filter(r => r.propertyKey === prop);
+
             const isOptional = propRules.some(r => r.type === 'IsOptional');
-            
-            const activeRules = propRules.filter(r => r.type !== 'IsOptional');
-            const firstActiveRule = activeRules[0];
-            const atLocation = firstActiveRule ? firstActiveRule.at : undefined;
+
+            let atLocation: string | undefined;
+            const firstRuleWithAt = propRules.find(r => r.at && r.type !== 'IsOptional');
+
+            if (firstRuleWithAt) {
+                atLocation = firstRuleWithAt.at;
+            }
 
             const actions: ValidationAction[] = [];
 
             for (const rule of propRules) {
                 if (rule.type === 'IsOptional') continue;
 
+                const isEach = rule.options && rule.options.each;
+
                 if (rule.type === "ValidateNested") {
                     actions.push((val, ctx) => {
-                        if (val && typeof val === 'object') {
+                        if (!val) return;
+
+                        if (isEach && Array.isArray(val)) {
+                            for (let i = 0; i < val.length; i++) {
+                                const item = val[i];
+                                if (item && typeof item === 'object') {
+                                    const nestedErrors = new Validator().validate(item);
+                                    if (nestedErrors.length > 0) {
+                                        ctx.childrenErrors.push(...nestedErrors);
+                                    }
+                                }
+                            }
+                        } else if (typeof val === 'object') {
                             const nestedErrors = new Validator().validate(val);
                             if (nestedErrors.length > 0) {
                                 ctx.childrenErrors.push(...nestedErrors);
@@ -73,11 +93,24 @@ export class Validator {
                 if (strategy) {
                     const ruleType = rule.type;
                     const ruleMessage = rule.message;
-                    
+
                     actions.push((val, ctx) => {
-                        const errorMsg = strategy(val, rule, prop);
-                        if (errorMsg !== null) {
-                            ctx.failedRules[ruleType] = ruleMessage ?? errorMsg;
+                        if (isEach && Array.isArray(val)) {
+                            for (let i = 0; i < val.length; i++) {
+                                const errorMsg = strategy(val[i], rule, prop);
+                                if (errorMsg !== null) {
+                                    const finalMsg = ruleMessage
+                                        ? `${ruleMessage} (index: ${i})`
+                                        : `${errorMsg} (at index ${i})`;
+                                    ctx.failedRules[ruleType] = finalMsg;
+                                    break;
+                                }
+                            }
+                        } else {
+                            const errorMsg = strategy(val, rule, prop);
+                            if (errorMsg !== null) {
+                                ctx.failedRules[ruleType] = ruleMessage ?? errorMsg;
+                            }
                         }
                     });
                 }
@@ -97,24 +130,15 @@ export class Validator {
 
                 for (let i = 0; i < actions.length; i++) {
                     const action = actions[i];
-                    if (action) {
-                        action(value, context);
-                    }
+                    if (action) action(value, context);
                 }
 
                 if (Object.keys(context.failedRules).length > 0 || context.childrenErrors.length > 0) {
                     const errorResult: ValidationError = { property: prop };
-                    
-                    if (atLocation) {
-                        errorResult.at = atLocation;
-                    }
 
-                    if (Object.keys(context.failedRules).length > 0) {
-                        errorResult.failedRules = context.failedRules;
-                    }
-                    if (context.childrenErrors.length > 0) {
-                        errorResult.children = context.childrenErrors;
-                    }
+                    if (atLocation) errorResult.at = atLocation;
+                    if (Object.keys(context.failedRules).length > 0) errorResult.failedRules = context.failedRules;
+                    if (context.childrenErrors.length > 0) errorResult.children = context.childrenErrors;
 
                     errors.push(errorResult);
                 }

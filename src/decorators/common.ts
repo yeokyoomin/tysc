@@ -1,9 +1,6 @@
 import { storage } from "../core/Storage";
 import { getCallerLocation } from "../utils/stack"
-
-export type ValidationOptions = {
-    message?: string;
-}
+import { ValidationOptions } from "../core/types";
 
 export function createDecorator(type: string, constraints: any[] = [], options?: ValidationOptions) {
     const location = getCallerLocation();

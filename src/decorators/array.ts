@@ -1,4 +1,5 @@
-import { createDecorator, ValidationOptions } from "./common";
+import { createDecorator } from "./common";
+import { ValidationOptions } from "../core/types"
 
 export function IsArray(options?: ValidationOptions) {
     return createDecorator('IsArray', [], options);
