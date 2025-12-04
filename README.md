@@ -20,7 +20,7 @@ Unlike other libraries, `tysc` has **Zero Dependencies** and provides **Source L
 
 ---
 
-## 🚀 What's New in v2.2.1? (Architectural Polish)
+## 🚀 What's New in v2.2.2? (Architectural Polish)
 
 - 💎 **Singleton Architecture**: The Validator engine has been refactored to use a **Singleton pattern**. Nested validations (`@ValidateNested`) now reuse the existing instance, achieving Zero-Allocation even for deep complex objects.
 
@@ -34,7 +34,7 @@ Unlike other libraries, `tysc` has **Zero Dependencies** and provides **Source L
 
 ## ✨ Why Tysc?
 
-- 🚀 **Unrivaled Performance**: **15.2x faster** than `class-validator`. The fastest decorator-based library in existence.
+- 🚀 **Unrivaled Performance**: **17x faster** than `class-validator`. The fastest decorator-based library in existence.
 - 📍 **Click-to-Jump Debugging**: Error logs include the exact file path and line number (`at`). Ctrl+Click to jump straight to the code.
 - 🪶 **Zero Dependencies**: Ultra-lightweight (~3KB). Perfect for Serverless (AWS Lambda, Cloudflare Workers).
 - 🧩 **Nested & Array Validation**: Easily validates complex JSON structures and DTOs.
@@ -44,8 +44,8 @@ Unlike other libraries, `tysc` has **Zero Dependencies** and provides **Source L
 
 ## ⚡ Performance Benchmark
 
-Benchmark conducted on **v2.2.1**.
-`tysc` demonstrates **Zero-Allocation** architecture, outperforming `zod` in complex scenarios.
+Benchmark conducted on **v2.2.2** with **10,000,000 iterations**.
+`tysc` demonstrates **Zero-Allocation** architecture, outperforming `zod` in complex scenarios under high load.
 
 ### 🏆 Scenario: Complex Nested Objects (Real-world DTO)
 
@@ -53,12 +53,12 @@ Benchmark conducted on **v2.2.1**.
 
 | Library         |    Ops/Sec    |   Relative Speed   |        Note         |
 | :-------------- | :-----------: | :----------------: | :-----------------: |
-| **tysc** 🚀     | **4,835,225** | **100% (Fastest)** | **Singleton / JIT** |
-| **zod**         |   4,433,264   |       91.7%        |     Functional      |
-| class-validator |    265,023    |        5.5%        |         OOP         |
+| **tysc** 🚀     | **5,011,871** | **100% (Fastest)** | **Singleton / JIT** |
+| **zod**         |   4,778,890   |       95.3%        |     Functional      |
+| class-validator |    267,420    |        5.3%        |         OOP         |
 
 > **💡 Insight:**
-> In complex real-world scenarios (Nested Objects + Arrays), `tysc` is **faster than Zod** and **~18x faster than `class-validator`**.
+> In complex real-world scenarios (Nested Objects + Arrays), `tysc` is **faster than Zod** and **~19x faster than `class-validator`**.
 
 ---
 
@@ -68,11 +68,11 @@ Benchmark conducted on **v2.2.1**.
 
 | Library         |    Ops/Sec     | Relative Speed |
 | :-------------- | :------------: | :------------: |
-| **zod**         |   27,298,834   |      100%      |
-| **tysc** 🚀     | **15,646,293** |     57.3%      |
-| class-validator |   1,023,196    |      3.7%      |
+| **zod**         |   33,242,978   |      100%      |
+| **tysc** 🚀     | **17,773,891** |     53.5%      |
+| class-validator |   1,061,291    |      3.2%      |
 
-> **💡 Note:** Even in simple scenarios, `tysc` is **15x faster** than `class-validator`.
+> **💡 Note:** Even in simple scenarios, `tysc` is **~17x faster** than `class-validator`.
 
 ---
 
