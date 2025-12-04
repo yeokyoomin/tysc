@@ -37,7 +37,7 @@ export class Validator {
 
         for (let i = 0; i < executors.length; i++) {
             const exec = executors[i];
-            if (exec !== undefined) exec(target_obj, errors);
+            if (exec) exec(target_obj, errors);
         }
 
         return errors;
@@ -45,21 +45,34 @@ export class Validator {
 
     private compile(target: Function): PropExecutor[] {
         const rules = storage.getRules(target);
+
+        const rulesByProp = new Map<string | symbol, typeof rules>();
+        for (let i = 0; i < rules.length; i++) {
+            const r = rules[i];
+            if (!r) continue;
+
+            let list = rulesByProp.get(r.propertyKey);
+            if (!list) {
+                list = [];
+                rulesByProp.set(r.propertyKey, list);
+            }
+            list.push(r);
+        }
+
         const executors: PropExecutor[] = [];
-        const props = new Set(rules.map(r => r.propertyKey));
 
-        for (const prop of props) {
-            const propRules = rules.filter(r => r.propertyKey === prop);
+        for (const [prop, propRules] of rulesByProp) {
+            const propName = String(prop);
 
-            const isOptional = propRules.some(r => r.type === "IsOptional");
-
-            let atLocation: string | undefined;
-            const firstWithAt = propRules.find(r => r.at && r.type !== "IsOptional");
-            if (firstWithAt) atLocation = firstWithAt.at;
+            const isOptional = propRules.some(r => r && r.type === "IsOptional");
+            const firstWithAt = propRules.find(r => r && r.at && r.type !== "IsOptional");
+            const atLocation = firstWithAt?.at;
 
             const actions: ValidationAction[] = [];
 
-            for (const rule of propRules) {
+            for (let i = 0; i < propRules.length; i++) {
+                const rule = propRules[i];
+                if (!rule) continue;
                 if (rule.type === "IsOptional") continue;
 
                 const options = rule.options;
@@ -70,25 +83,25 @@ export class Validator {
                         if (!val) return;
 
                         if (isEach && Array.isArray(val)) {
-                            for (let i = 0; i < val.length; i++) {
-                                const item = val[i];
+                            for (let k = 0; k < val.length; k++) {
+                                const item = val[k];
                                 if (item && typeof item === "object") {
-                                    const nestedErrors = Validator.default.validate(item);
-                                    if (nestedErrors.length > 0) {
+                                    const nested = Validator.default.validate(item);
+                                    if (nested.length > 0) {
                                         ctx.childrenErrors.push({
-                                            property: `${prop}[${i}]`,
-                                            index: i,
-                                            children: nestedErrors
+                                            property: `${propName}[${k}]`,
+                                            index: k,
+                                            children: nested
                                         });
                                     }
                                 }
                             }
                         } else if (typeof val === "object") {
-                            const nestedErrors = Validator.default.validate(val);
-                            if (nestedErrors.length > 0) {
+                            const nested = Validator.default.validate(val);
+                            if (nested.length > 0) {
                                 ctx.childrenErrors.push({
-                                    property: prop,
-                                    children: nestedErrors
+                                    property: propName,
+                                    children: nested
                                 });
                             }
                         }
@@ -97,38 +110,37 @@ export class Validator {
                 }
 
                 const strategy = validationStrategies[rule.type];
-                if (strategy) {
-                    const ruleType = rule.type;
-                    const ruleMessage = options?.message ?? rule.message;
+                if (!strategy) continue;
 
-                    actions.push((val, ctx) => {
-                        if (isEach && Array.isArray(val)) {
-                            for (let i = 0; i < val.length; i++) {
-                                const res = strategy(val[i], rule, prop);
-                                if (res !== null) {
-                                    ctx.failedRules[ruleType] =
-                                        ruleMessage
-                                            ? `${ruleMessage} (index: ${i})`
-                                            : `${res} (at index ${i})`;
-                                    break;
-                                }
-                            }
-                        } else {
-                            const res = strategy(val, rule, prop);
+                const ruleType = rule.type;
+                const ruleMessage = options?.message ?? rule.message;
+
+                actions.push((val, ctx) => {
+                    if (isEach && Array.isArray(val)) {
+                        for (let k = 0; k < val.length; k++) {
+                            const res = strategy(val[k], rule, propName);
                             if (res !== null) {
-                                ctx.failedRules[ruleType] = ruleMessage ?? res;
+                                ctx.failedRules[ruleType] =
+                                    ruleMessage
+                                        ? `${ruleMessage} (index: ${k})`
+                                        : `${res} (at index ${k})`;
+                                break;
                             }
                         }
-                    });
-                }
+                    } else {
+                        const res = strategy(val, rule, propName);
+                        if (res !== null) {
+                            ctx.failedRules[ruleType] = ruleMessage ?? res;
+                        }
+                    }
+                });
             }
 
             executors.push((obj: any, errors: ValidationError[]) => {
-                const value = obj[prop];
+                // ❗ symbol-safe property 접근
+                const value = obj[prop as keyof typeof obj];
 
-                if ((value === undefined || value === null) && isOptional) {
-                    return;
-                }
+                if ((value === undefined || value === null) && isOptional) return;
 
                 const ctx: ValidationContext = {
                     failedRules: {},
@@ -137,18 +149,17 @@ export class Validator {
 
                 for (let i = 0; i < actions.length; i++) {
                     const action = actions[i];
-                    if (action !== undefined) action(value, ctx);
+                    if (action) action(value, ctx);
                 }
 
-                const hasFailedRules = Object.keys(ctx.failedRules).length > 0;
-                const hasChildrenErrors = ctx.childrenErrors.length > 0;
+                const hasFailed = Object.keys(ctx.failedRules).length > 0;
+                const hasChildren = ctx.childrenErrors.length > 0;
 
-                if (hasFailedRules || hasChildrenErrors) {
-                    const err: ValidationError = { property: prop };
+                if (hasFailed || hasChildren) {
+                    const err: ValidationError = { property: propName };
                     if (atLocation) err.at = atLocation;
-                    if (hasFailedRules) err.failedRules = ctx.failedRules;
-                    if (hasChildrenErrors) err.children = ctx.childrenErrors;
-
+                    if (hasFailed) err.failedRules = ctx.failedRules;
+                    if (hasChildren) err.children = ctx.childrenErrors;
                     errors.push(err);
                 }
             });
