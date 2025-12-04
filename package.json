@@ -1,6 +1,6 @@
 {
   "name": "tysc",
-  "version": "2.0.1",
+  "version": "2.2.0",
   "description": "Zero-dependency TypeScript validation library with click-to-jump debugging (source location tracking). Supports custom rules & nested objects.",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
@@ -17,7 +17,9 @@
   "homepage": "https://github.com/yeokyoomin/tysc#readme",
   "scripts": {
     "build": "tsc",
-    "test": "ts-node ./test/integration.ts"
+    "test": "ts-node ./test/integration.ts",
+    "bench": "ts-node ./test/benchmark.ts",
+    "ctest": "ts-node ./test/customcheck.ts"
   },
   "keywords": [
     "typescript",

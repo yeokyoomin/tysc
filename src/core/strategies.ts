@@ -1,6 +1,6 @@
 import { ValidationRuleTemplate } from "./types";
 
-type ValidationStrategy = (value: any, rule: ValidationRuleTemplate, prop: string) => string | null;
+export type ValidationStrategy = (value: any, rule: ValidationRuleTemplate, prop: string) => string | null;
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -82,3 +82,10 @@ export const validationStrategies: Record<string, ValidationStrategy> = {
         return `${prop} failed custom validation`;
     }
 };
+
+export function registerStrategy(name: string, strategy: ValidationStrategy) {
+    if (validationStrategies[name]) {
+        console.warn(`[tysc] Warning: Strategy '${name}' is being overwritten.`);
+    }
+    validationStrategies[name] = strategy;
+}

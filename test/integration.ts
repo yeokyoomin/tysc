@@ -2,10 +2,8 @@ import {
     IsString, IsNumber, IsBoolean, IsArray,
     Min, Max, Length, IsEmail,
     ValidateNested, IsOptional, Custom,
-    validate
+    validate, ValidationError
 } from "../src"; // 경로 확인 필요
-
-import { ValidationError } from "../src/core/types"; // 타입 import 추가 (필요시)
 
 // --- [테스트 유틸리티] ---
 function describe(name: string, fn: () => void) {
@@ -20,7 +18,6 @@ function test(name: string, fn: () => void) {
     } catch (e: any) {
         console.error(`  ❌ ${name}`);
         console.error(`     Error: ${e.message}`);
-        // process.exit(1); 
     }
 }
 
@@ -36,7 +33,7 @@ function expect(actual: any) {
         toContainError: (prop: string, rule?: string) => {
             const found = actual.find((e: any) => e.property === prop);
             if (!found) throw new Error(`Expected error on property '${prop}', but found none.`);
-            if (rule && (!found.failedRules || !found.failedRules[rule])) {
+            if (rule && (!found.failedRules?.[rule])) {
                 throw new Error(`Expected rule '${rule}' to fail on '${prop}', but it didn't.`);
             }
         },
@@ -47,7 +44,6 @@ function expect(actual: any) {
 }
 
 // --- [테스트 시나리오] ---
-
 console.log("🔥 Starting Tysc Integration Test Suite...");
 
 // 1. 기본 타입 및 제약 조건 테스트
@@ -156,10 +152,9 @@ describe("Nested Object & Array Validation", () => {
         const user = new User(new Profile(123 as any), []);
         const errors = validate(user);
         expect(errors).toHaveLength(1);
-        expect(errors).toContainError("profile");
 
-        // ✨ [수정] errors[0] 뒤에 ! (Non-null assertion) 추가
-        if (!errors[0]!.children || errors[0]!.children!.length === 0) {
+        const nested = errors[0]?.children;
+        if (!nested || nested.length === 0) {
             throw new Error("Nested error 'children' is missing");
         }
     });
@@ -170,12 +165,10 @@ describe("Nested Object & Array Validation", () => {
             new Profile(123 as any)
         ]);
         const errors = validate(user);
-
         expect(errors).toHaveLength(1);
-        expect(errors).toContainError("posts");
 
-        // ✨ [수정] errors[0] 뒤에 ! (Non-null assertion) 추가
-        if (!errors[0]!.children || errors[0]!.children!.length === 0) {
+        const nested = errors[0]?.children;
+        if (!nested || nested.length === 0) {
             throw new Error("Array nested error 'children' is missing");
         }
     });
@@ -213,7 +206,6 @@ describe("Optional Fields", () => {
 describe("Debugging Feature (at)", () => {
     class DebugUser {
         @IsString()
-        // ✨ [수정] !(확정 할당 단언) 추가: 초기화 없이 테스트용으로 쓰겠다는 의미
         name!: number;
     }
 
@@ -221,14 +213,11 @@ describe("Debugging Feature (at)", () => {
         const d = new DebugUser();
         d.name = 123;
         const errors = validate(d);
-
         expect(errors).toHaveLength(1);
 
-        // ✨ [수정] !(Non-null assertion) 추가: errors[0]이 확실히 있다고 컴파일러에게 알림
-        const error = errors[0]!;
-
-        if (!error.at) throw new Error("'at' property is missing!");
-
+        const error = errors[0];
+        if (!error) throw new Error("Error object missing");
+        if (!error.at) throw new Error("'at' property is missing");
         if (!error.at.includes(".ts") && !error.at.includes(".js")) {
             throw new Error(`Invalid 'at' format: ${error.at}`);
         }

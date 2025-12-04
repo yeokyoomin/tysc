@@ -15,6 +15,7 @@ export interface ValidationRuleTemplate {
 
 export interface ValidationError {
     property: string;
+    index?: number | undefined;
     failedRules?: { [key: string]: string } | undefined;
     children?: ValidationError[] | undefined;
     at?: string | undefined;
