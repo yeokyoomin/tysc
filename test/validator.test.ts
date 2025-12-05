@@ -304,3 +304,20 @@ describe("registerStrategy warning coverage", () => {
         warnSpy.mockRestore();
     });
 });
+
+describe("abortEarly coverage in loop", () => {
+    it("should hit ctx.shouldStop inside loop", () => {
+        class TestDto {
+            @IsArray()
+            @Min(5, { each: true })
+            numbers = [1, 2, 6];
+        }
+
+        const errors = validate(new TestDto(), { abortEarly: true });
+
+        expect(errors.length).toBe(1);
+        const failedRules = errors[0]!.failedRules!;
+        expect(failedRules["Min"]!.length).toBe(1);
+        expect(failedRules["Min"]![0]).toContain("at index 0");
+    });
+});
