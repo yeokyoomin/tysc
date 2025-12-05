@@ -200,6 +200,20 @@ describe("Advanced Features", () => {
         const msgs = errors[0]!.failedRules!["IsString"];
         expect(msgs!.length).toBe(1);
     });
+
+    it("should stop validation immediately after the first error when abortEarly is true", () => {
+        class TestDto {
+            @IsString({ message: "Must be a string" })
+            @Min(5, { message: "Must be at least 5 characters" })
+            name: string = "abc";
+        }
+
+        const errors = validate(new TestDto(), { abortEarly: true });
+
+        expect(errors.length).toBe(1);
+        expect(errors[0]!.failedRules!["Min"]).toContain("Must be at least 5 characters");
+
+    });
 });
 
 describe("Custom Strategy", () => {
