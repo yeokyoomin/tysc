@@ -6,6 +6,7 @@ type ValidationContext = {
     failedRules: { [key: string]: string[] } | null;
     childrenErrors: ValidationError[] | null;
     shouldStop: boolean;
+    abortEarly: boolean;
 };
 
 type ValidationAction = (value: any, context: ValidationContext) => void;
@@ -93,7 +94,7 @@ export class Validator {
                                 if (item && typeof item === "object") {
                                     if (ctx.shouldStop) break;
 
-                                    const nested = Validator.default.validate(item, { abortEarly: ctx.shouldStop });
+                                    const nested = Validator.default.validate(item, { abortEarly: ctx.abortEarly });
 
                                     if (nested.length > 0) {
                                         if (!ctx.childrenErrors) ctx.childrenErrors = [];
@@ -102,18 +103,19 @@ export class Validator {
                                             index: k,
                                             children: nested
                                         });
-                                        if (ctx.shouldStop) break;
+                                        if (ctx.abortEarly) {
+                                            ctx.shouldStop = true;
+                                            break;
+                                        }
                                     }
                                 }
                             }
                         } else if (typeof val === "object") {
-                            const nested = Validator.default.validate(val, { abortEarly: ctx.shouldStop });
+                            const nested = Validator.default.validate(val, { abortEarly: ctx.abortEarly });
                             if (nested.length > 0) {
                                 if (!ctx.childrenErrors) ctx.childrenErrors = [];
-                                ctx.childrenErrors.push({
-                                    property: propName,
-                                    children: nested
-                                });
+                                ctx.childrenErrors.push(...nested);
+                                if (ctx.abortEarly) ctx.shouldStop = true;
                             }
                         }
                     });
@@ -146,8 +148,10 @@ export class Validator {
                                     : `${res} (at index ${k})`;
 
                                 ctx.failedRules[ruleType].push(msg);
-
-                                if (ctx.shouldStop) break;
+                                if (ctx.abortEarly) {
+                                    ctx.shouldStop = true;
+                                    break;
+                                }
                             }
                         }
                     } else {
@@ -158,6 +162,7 @@ export class Validator {
 
                             const msg = ruleMessage ?? res;
                             ctx.failedRules[ruleType].push(msg);
+                            if (ctx.abortEarly) ctx.shouldStop = true;
                         }
                     }
                 });
@@ -172,14 +177,15 @@ export class Validator {
                 const ctx: ValidationContext = {
                     failedRules: null,
                     childrenErrors: null,
-                    shouldStop: !!opts?.abortEarly
+                    shouldStop: false,
+                    abortEarly: !!opts?.abortEarly
                 };
 
                 for (let i = 0; i < actions.length; i++) {
                     const action = actions[i];
                     if (action) {
                         action(value, ctx);
-                        if (ctx.shouldStop && (ctx.failedRules || ctx.childrenErrors)) break;
+                        if (ctx.shouldStop) break;
                     }
                 }
 

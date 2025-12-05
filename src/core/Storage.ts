@@ -1,13 +1,24 @@
 import { ValidationRuleTemplate } from "./types"
 
 class Storage {
-    private rules: ValidationRuleTemplate[] = [];
-    addRule(params: ValidationRuleTemplate): unknown {
-        return this.rules.push(params)
+    private rules = new Map<Function, ValidationRuleTemplate[]>();
+
+    addRule(params: ValidationRuleTemplate): void {
+        const target = params.target;
+
+        let targetRules = this.rules.get(target);
+
+        if (!targetRules) {
+            targetRules = [];
+            this.rules.set(target, targetRules);
+        }
+
+        targetRules.push(params);
     }
+
     getRules(target: Function): ValidationRuleTemplate[] {
-        return this.rules.filter(rule => rule.target === target)
+        return this.rules.get(target) || [];
     }
 }
 
-export const storage = new Storage()
+export const storage = new Storage();

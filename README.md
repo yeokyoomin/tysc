@@ -21,13 +21,12 @@ Unlike other libraries, `tysc` has **Zero Dependencies** and provides **Source L
 
 ---
 
-## 🚀 What's New in v2.4.0? (Performance Revolution)
+## 🚀 What's New in v2.4.2? (Stability & Precision)
 
-- ⚡ **Lazy Allocation**: Context objects (`failedRules`, `childrenErrors`) are now only allocated when errors actually occur. This reduces memory usage to near-zero for valid data.
-- 🏎️ **Extreme Speed**: Thanks to lazy allocation and optimized JIT loops, `tysc` now outperforms `zod` in complex nested object validation scenarios.
-- 🛡️ **Robustness**: Enhanced safety for `Symbol` keys and `try-catch` wrapping for custom strategies ensures your application stays stable even with custom validation logic.
-- 🛑 **Abort Early**: New `abortEarly` option allows you to stop validation on the first error, critical for validating massive datasets efficiently.
-- 🔢 **Rule Priority**: Control the execution order of your validation rules with the new `priority` option.
+- 🚑 **Critical Fix for `abortEarly`**: Resolved a logic issue where enabling `abortEarly` caused validation to skip entirely. The validator now correctly executes strategies and stops **immediately after** the first error is detected.
+- ✨ **Nested Error Flattening**: Improved error reporting for single nested objects. Errors are now mapped directly to their properties without redundant wrapping (e.g., `meta -> name` instead of `meta -> meta -> name`).
+- 🛡️ **Context State Isolation**: Refactored internal `ValidationContext` to strictly separate user configuration (`abortEarly`) from runtime state (`shouldStop`), ensuring 100% stability in complex recursive validations.
+- ⚡ **Performance Retained**: All fixes maintain the **Zero-Allocation** architecture introduced in v2.4.2.
 
 ---
 
@@ -260,8 +259,8 @@ Control the order of validation execution.
 
 ```ts
 class User {
-  @IsString({ priority: 10 }) // Checks type first
-  @Length(5, 20, { priority: 5 }) // Then checks length
+  @IsString({ priority: 10 }) // Checks type first (Priority 10)
+  @Length(5, 20, { priority: 5 }) // Then checks length (Priority 5)
   username!: string;
 }
 ```
