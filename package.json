@@ -25,9 +25,16 @@
     "validation",
     "decorator",
     "zero-dependency",
-    "debugging",
+    "runtime-validation",
+    "nested-validation",
+    "custom-decorator",
     "source-map",
-    "tysc"
+    "tysc",
+    "error-handling",
+    "array-validation",
+    "min-max-validation",
+    "length-validation",
+    "typescript-decorators"
   ],
   "author": "",
   "license": "MIT",
