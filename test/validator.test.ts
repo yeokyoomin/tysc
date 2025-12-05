@@ -254,4 +254,53 @@ describe("Custom Strategy", () => {
         expect(errors).toHaveLength(1);
         expect(errors[0]!.failedRules!["Bomb"]![0]).toContain("Internal validation error");
     });
+    it("should create a decorator and attach metadata correctly", () => {
+        function TestDecorator(options?: ValidationOptions) {
+            return createDecorator("TestRule", [], options);
+        }
+
+        class TestDto {
+            @TestDecorator({ message: "Test message" })
+            field: string = "abc";
+        }
+
+        const errors = validate(new TestDto());
+
+        expect(errors).toEqual([]);
+
+    });
+});
+
+describe("Validator abortEarly in array loop", () => {
+    it("should stop validation inside array loop when abortEarly is true", () => {
+        class TestDto {
+            @IsArray()
+            @Min(5, { each: true })
+            numbers = [1, 2, 6];
+        }
+
+        const errors = validate(new TestDto(), { abortEarly: true });
+
+        expect(errors.length).toBe(1);
+        const failedRules = errors[0]!.failedRules!;
+        expect(failedRules["Min"]!.length).toBe(1);
+        expect(failedRules["Min"]![0]).toContain("at index 0");
+
+    });
+});
+
+describe("registerStrategy warning coverage", () => {
+    it("should warn when overwriting an existing strategy", () => {
+        const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => { });
+
+        const fn = () => null;
+        registerStrategy("Duplicate", fn);
+        registerStrategy("Duplicate", fn);
+
+        expect(warnSpy).toHaveBeenCalledWith(
+            "[Validator] Strategy 'Duplicate' is being overwritten."
+        );
+
+        warnSpy.mockRestore();
+    });
 });
