@@ -55,6 +55,13 @@ describe("Validator System", () => {
         expect(validate(new UserProfile({ username: "Alice", age: 25, isActive: null }))).toHaveLength(0);
     });
 
+    it("should not trigger messages for valid values", () => {
+        const user = new UserProfile({ username: "ValidName", age: 30, isActive: true });
+        const errors = validate(user);
+
+        expect(errors).toHaveLength(0);
+    });
+
 });
 
 describe("Nested & Array Validation", () => {
