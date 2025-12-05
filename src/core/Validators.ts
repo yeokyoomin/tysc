@@ -2,15 +2,20 @@ import { storage } from "./Storage";
 import { ValidationError, ValidatorOptions } from "./types";
 import { validationStrategies } from "./strategies";
 
-type ValidationContext = {
-    failedRules: { [key: string]: string[] } | null;
-    childrenErrors: ValidationError[] | null;
-    shouldStop: boolean;
-    abortEarly: boolean;
-};
+type RuleExecutor = (
+    val: any,
+    context: {
+        failedRules: { [key: string]: string[] } | null;
+        childrenErrors: ValidationError[] | null;
+        abortEarly: boolean;
+    }
+) => boolean;
 
-type ValidationAction = (value: any, context: ValidationContext) => void;
-type PropExecutor = (obj: any, errors: ValidationError[], options?: ValidatorOptions) => void;
+type PropExecutor = (
+    obj: any,
+    errors: ValidationError[],
+    abortEarly: boolean
+) => void;
 
 export class Validator {
     private static instance: Validator;
@@ -28,19 +33,20 @@ export class Validator {
         if (!target_obj || typeof target_obj !== "object") return [];
 
         const ctor = target_obj.constructor;
-
         let executors = Validator.cache.get(ctor);
+
         if (!executors) {
             executors = this.compile(ctor);
             Validator.cache.set(ctor, executors);
         }
 
         const errors: ValidationError[] = [];
+        const abortEarly = !!options?.abortEarly;
 
         for (let i = 0; i < executors.length; i++) {
-            const exec = executors[i];
-            if (options?.abortEarly && errors.length > 0) break;
-            if (exec) exec(target_obj, errors, options);
+            executors[i]!(target_obj, errors, abortEarly);
+
+            if (abortEarly && errors.length > 0) break;
         }
 
         return errors;
@@ -49,16 +55,16 @@ export class Validator {
     private compile(target: Function): PropExecutor[] {
         const rules = storage.getRules(target);
         const rulesByProp = new Map<string | symbol, typeof rules>();
-
         for (let i = 0; i < rules.length; i++) {
             const r = rules[i];
-            if (!r) continue;
-            let list = rulesByProp.get(r.propertyKey);
-            if (!list) {
-                list = [];
-                rulesByProp.set(r.propertyKey, list);
+            if (r) {
+                let list = rulesByProp.get(r.propertyKey);
+                if (!list) {
+                    list = [];
+                    rulesByProp.set(r.propertyKey, list);
+                }
+                list.push(r);
             }
-            list.push(r);
         }
 
         const executors: PropExecutor[] = [];
@@ -72,7 +78,7 @@ export class Validator {
             const firstWithAt = propRules.find(r => r && r.at && r.type !== "IsOptional");
             const atLocation = firstWithAt?.at;
 
-            const actions: ValidationAction[] = [];
+            const ruleExecutors: RuleExecutor[] = [];
 
             for (let i = 0; i < propRules.length; i++) {
                 const rule = propRules[i];
@@ -84,18 +90,16 @@ export class Validator {
                 const ruleMessage = options?.message ?? rule.message;
 
                 if (rule.type === "ValidateNested") {
-                    actions.push((val, ctx) => {
-                        if (ctx.shouldStop) return;
-                        if (!val) return;
+                    ruleExecutors.push((val, ctx) => {
+                        if (!val) return false;
+
+                        let shouldStop = false;
 
                         if (isEach && Array.isArray(val)) {
                             for (let k = 0; k < val.length; k++) {
                                 const item = val[k];
                                 if (item && typeof item === "object") {
-                                    if (ctx.shouldStop) break;
-
                                     const nested = Validator.default.validate(item, { abortEarly: ctx.abortEarly });
-
                                     if (nested.length > 0) {
                                         if (!ctx.childrenErrors) ctx.childrenErrors = [];
                                         ctx.childrenErrors.push({
@@ -104,7 +108,7 @@ export class Validator {
                                             children: nested
                                         });
                                         if (ctx.abortEarly) {
-                                            ctx.shouldStop = true;
+                                            shouldStop = true;
                                             break;
                                         }
                                     }
@@ -115,9 +119,10 @@ export class Validator {
                             if (nested.length > 0) {
                                 if (!ctx.childrenErrors) ctx.childrenErrors = [];
                                 ctx.childrenErrors.push(...nested);
-                                if (ctx.abortEarly) ctx.shouldStop = true;
+                                if (ctx.abortEarly) shouldStop = true;
                             }
                         }
+                        return shouldStop;
                     });
                     continue;
                 }
@@ -125,75 +130,73 @@ export class Validator {
                 const strategy = validationStrategies[ruleType];
                 if (!strategy) continue;
 
-                actions.push((val, ctx) => {
-                    if (ctx.shouldStop) return;
-
-                    const safeStrategy = (v: any, r: any, p: string) => {
-                        try {
-                            return strategy(v, r, p);
-                        } catch (e: any) {
-                            return `Internal validation error: ${e.message}`;
-                        }
-                    };
+                ruleExecutors.push((val, ctx) => {
+                    let shouldStop = false;
 
                     if (isEach && Array.isArray(val)) {
                         for (let k = 0; k < val.length; k++) {
-                            const res = safeStrategy(val[k], rule, propName);
+                            let res: string | null = null;
+                            try {
+                                res = strategy(val[k], rule, propName);
+                            } catch (e: any) {
+                                res = `Internal validation error: ${e.message}`;
+                            }
+
                             if (res !== null) {
                                 if (!ctx.failedRules) ctx.failedRules = {};
                                 if (!ctx.failedRules[ruleType]) ctx.failedRules[ruleType] = [];
 
-                                const msg = ruleMessage
-                                    ? `${ruleMessage} (index: ${k})`
-                                    : `${res} (at index ${k})`;
-
+                                const msg = ruleMessage ? `${ruleMessage} (index: ${k})` : `${res} (at index ${k})`;
                                 ctx.failedRules[ruleType].push(msg);
+
                                 if (ctx.abortEarly) {
-                                    ctx.shouldStop = true;
+                                    shouldStop = true;
                                     break;
                                 }
                             }
                         }
                     } else {
-                        const res = safeStrategy(val, rule, propName);
+                        let res: string | null = null;
+                        try {
+                            res = strategy(val, rule, propName);
+                        } catch (e: any) {
+                            res = `Internal validation error: ${e.message}`;
+                        }
+
                         if (res !== null) {
                             if (!ctx.failedRules) ctx.failedRules = {};
                             if (!ctx.failedRules[ruleType]) ctx.failedRules[ruleType] = [];
 
                             const msg = ruleMessage ?? res;
                             ctx.failedRules[ruleType].push(msg);
-                            if (ctx.abortEarly) ctx.shouldStop = true;
+
+                            if (ctx.abortEarly) shouldStop = true;
                         }
                     }
+                    return shouldStop;
                 });
             }
 
-            executors.push((obj: any, errors: ValidationError[], opts?: ValidatorOptions) => {
-                if (opts?.abortEarly && errors.length > 0) return;
-
+            executors.push((obj: any, errors: ValidationError[], abortEarly: boolean) => {
                 const value = obj[prop as keyof typeof obj];
                 if ((value === undefined || value === null) && isOptional) return;
 
-                const ctx: ValidationContext = {
-                    failedRules: null,
-                    childrenErrors: null,
-                    shouldStop: false,
-                    abortEarly: !!opts?.abortEarly
+                const context = {
+                    failedRules: null as { [key: string]: string[] } | null,
+                    childrenErrors: null as ValidationError[] | null,
+                    abortEarly: abortEarly
                 };
 
-                for (let i = 0; i < actions.length; i++) {
-                    const action = actions[i];
-                    if (action) {
-                        action(value, ctx);
-                        if (ctx.shouldStop) break;
-                    }
+                for (let i = 0; i < ruleExecutors.length; i++) {
+                    const shouldStop = ruleExecutors[i]!(value, context);
+                    if (shouldStop) break;
                 }
 
-                if (ctx.failedRules || ctx.childrenErrors) {
+                if (context.failedRules || context.childrenErrors) {
                     const err: ValidationError = { property: propName };
                     if (atLocation) err.at = atLocation;
-                    if (ctx.failedRules) err.failedRules = ctx.failedRules;
-                    if (ctx.childrenErrors) err.children = ctx.childrenErrors;
+                    if (context.failedRules) err.failedRules = context.failedRules;
+                    if (context.childrenErrors) err.children = context.childrenErrors;
                     errors.push(err);
                 }
             });

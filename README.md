@@ -166,23 +166,33 @@ class User {
 
 ## ⚡ Performance Benchmark
 
-### Complex Nested Objects
+Benchmark conducted on **v2.5.0** (1,000,000 iterations).
+With **Stack-based Optimization** and **Zero-Allocation** architecture, `tysc` dominates in complex scenarios.
 
-| Library         | Ops/sec       | Relative |
-| --------------- | ------------- | -------- |
-| **tysc**        | **5,177,232** | 100%     |
-| zod             | 4,764,749     | 92%      |
-| class-validator | 289,808       | 5.6%     |
+### 🏆 Scenario: Complex Nested Objects (Real-world DTO)
 
-> tysc is faster than Zod and up to ~18x faster than class-validator for complex nested structures.
+> Deeply nested objects + Arrays + Recursion.
 
-### Simple Flat Objects
+| Library         |    Ops/Sec    |   Relative Speed   |        Note         |
+| :-------------- | :-----------: | :----------------: | :-----------------: |
+| **tysc** 🚀     | **6,188,961** | **100% (Fastest)** | **Zero-Allocation** |
+| **zod**         |   4,572,810   |       73.9%        |     Functional      |
+| class-validator |    266,609    |        4.3%        |         OOP         |
 
-| Library         | Ops/sec    | Relative |
-| --------------- | ---------- | -------- |
-| zod             | 27,211,846 | 100%     |
-| **tysc**        | 16,564,024 | 61%      |
-| class-validator | 1,082,037  | 4%       |
+> **💡 Insight:**
+> For complex data structures, `tysc` is **35% faster than Zod** and **~23x faster than `class-validator`**.
+
+---
+
+### 📦 Scenario: Simple Flat Objects
+
+| Library         |    Ops/Sec     | Relative Speed |
+| :-------------- | :------------: | :------------: |
+| **zod**         |   25,516,518   |      100%      |
+| **tysc** 🚀     | **20,678,246** |     81.0%      |
+| class-validator |   1,018,098    |      4.0%      |
+
+> **💡 Note:** Even in simple scenarios, `tysc` processes over **20 million ops/sec**, making it **20x faster** than `class-validator`.
 
 ---
 
