@@ -1,14 +1,15 @@
 import { storage } from "./Storage";
-import { ValidationError } from "./types";
+import { ValidationError, ValidatorOptions } from "./types";
 import { validationStrategies } from "./strategies";
 
 type ValidationContext = {
-    failedRules: { [key: string]: string };
-    childrenErrors: ValidationError[];
+    failedRules: { [key: string]: string[] } | null;
+    childrenErrors: ValidationError[] | null;
+    shouldStop: boolean;
 };
 
 type ValidationAction = (value: any, context: ValidationContext) => void;
-type PropExecutor = (obj: any, errors: ValidationError[]) => void;
+type PropExecutor = (obj: any, errors: ValidationError[], options?: ValidatorOptions) => void;
 
 export class Validator {
     private static instance: Validator;
@@ -22,7 +23,7 @@ export class Validator {
 
     private static cache = new Map<Function, PropExecutor[]>();
 
-    validate(target_obj: object): ValidationError[] {
+    validate<T extends object>(target_obj: T, options?: ValidatorOptions): ValidationError[] {
         if (!target_obj || typeof target_obj !== "object") return [];
 
         const ctor = target_obj.constructor;
@@ -37,7 +38,8 @@ export class Validator {
 
         for (let i = 0; i < executors.length; i++) {
             const exec = executors[i];
-            if (exec) exec(target_obj, errors);
+            if (options?.abortEarly && errors.length > 0) break;
+            if (exec) exec(target_obj, errors, options);
         }
 
         return errors;
@@ -45,12 +47,11 @@ export class Validator {
 
     private compile(target: Function): PropExecutor[] {
         const rules = storage.getRules(target);
-
         const rulesByProp = new Map<string | symbol, typeof rules>();
+
         for (let i = 0; i < rules.length; i++) {
             const r = rules[i];
             if (!r) continue;
-
             let list = rulesByProp.get(r.propertyKey);
             if (!list) {
                 list = [];
@@ -64,6 +65,8 @@ export class Validator {
         for (const [prop, propRules] of rulesByProp) {
             const propName = String(prop);
 
+            propRules.sort((a, b) => (b.options?.priority ?? 0) - (a.options?.priority ?? 0));
+
             const isOptional = propRules.some(r => r && r.type === "IsOptional");
             const firstWithAt = propRules.find(r => r && r.at && r.type !== "IsOptional");
             const atLocation = firstWithAt?.at;
@@ -72,33 +75,41 @@ export class Validator {
 
             for (let i = 0; i < propRules.length; i++) {
                 const rule = propRules[i];
-                if (!rule) continue;
-                if (rule.type === "IsOptional") continue;
+                if (!rule || rule.type === "IsOptional") continue;
 
                 const options = rule.options;
                 const isEach = options?.each === true;
+                const ruleType = rule.type;
+                const ruleMessage = options?.message ?? rule.message;
 
                 if (rule.type === "ValidateNested") {
                     actions.push((val, ctx) => {
+                        if (ctx.shouldStop) return;
                         if (!val) return;
 
                         if (isEach && Array.isArray(val)) {
                             for (let k = 0; k < val.length; k++) {
                                 const item = val[k];
                                 if (item && typeof item === "object") {
-                                    const nested = Validator.default.validate(item);
+                                    if (ctx.shouldStop) break;
+
+                                    const nested = Validator.default.validate(item, { abortEarly: ctx.shouldStop });
+
                                     if (nested.length > 0) {
+                                        if (!ctx.childrenErrors) ctx.childrenErrors = [];
                                         ctx.childrenErrors.push({
                                             property: `${propName}[${k}]`,
                                             index: k,
                                             children: nested
                                         });
+                                        if (ctx.shouldStop) break;
                                     }
                                 }
                             }
                         } else if (typeof val === "object") {
-                            const nested = Validator.default.validate(val);
+                            const nested = Validator.default.validate(val, { abortEarly: ctx.shouldStop });
                             if (nested.length > 0) {
+                                if (!ctx.childrenErrors) ctx.childrenErrors = [];
                                 ctx.childrenErrors.push({
                                     property: propName,
                                     children: nested
@@ -109,57 +120,74 @@ export class Validator {
                     continue;
                 }
 
-                const strategy = validationStrategies[rule.type];
+                const strategy = validationStrategies[ruleType];
                 if (!strategy) continue;
 
-                const ruleType = rule.type;
-                const ruleMessage = options?.message ?? rule.message;
-
                 actions.push((val, ctx) => {
+                    if (ctx.shouldStop) return;
+
+                    const safeStrategy = (v: any, r: any, p: string) => {
+                        try {
+                            return strategy(v, r, p);
+                        } catch (e: any) {
+                            return `Internal validation error: ${e.message}`;
+                        }
+                    };
+
                     if (isEach && Array.isArray(val)) {
                         for (let k = 0; k < val.length; k++) {
-                            const res = strategy(val[k], rule, propName);
+                            const res = safeStrategy(val[k], rule, propName);
                             if (res !== null) {
-                                ctx.failedRules[ruleType] =
-                                    ruleMessage
-                                        ? `${ruleMessage} (index: ${k})`
-                                        : `${res} (at index ${k})`;
-                                break;
+                                if (!ctx.failedRules) ctx.failedRules = {};
+                                if (!ctx.failedRules[ruleType]) ctx.failedRules[ruleType] = [];
+
+                                const msg = ruleMessage
+                                    ? `${ruleMessage} (index: ${k})`
+                                    : `${res} (at index ${k})`;
+
+                                ctx.failedRules[ruleType].push(msg);
+
+                                if (ctx.shouldStop) break;
                             }
                         }
                     } else {
-                        const res = strategy(val, rule, propName);
+                        const res = safeStrategy(val, rule, propName);
                         if (res !== null) {
-                            ctx.failedRules[ruleType] = ruleMessage ?? res;
+                            if (!ctx.failedRules) ctx.failedRules = {};
+                            if (!ctx.failedRules[ruleType]) ctx.failedRules[ruleType] = [];
+
+                            const msg = ruleMessage ?? res;
+                            ctx.failedRules[ruleType].push(msg);
                         }
                     }
                 });
             }
 
-            executors.push((obj: any, errors: ValidationError[]) => {
-                // ❗ symbol-safe property 접근
-                const value = obj[prop as keyof typeof obj];
+            executors.push((obj: any, errors: ValidationError[], opts?: ValidatorOptions) => {
+                if (opts?.abortEarly && errors.length > 0) return;
 
+                const value = obj[prop as keyof typeof obj];
                 if ((value === undefined || value === null) && isOptional) return;
 
                 const ctx: ValidationContext = {
-                    failedRules: {},
-                    childrenErrors: []
+                    failedRules: null,
+                    childrenErrors: null,
+                    shouldStop: !!opts?.abortEarly
                 };
 
                 for (let i = 0; i < actions.length; i++) {
                     const action = actions[i];
-                    if (action) action(value, ctx);
+                    if (action) {
+                        action(value, ctx);
+                        if (ctx.shouldStop && (ctx.failedRules || ctx.childrenErrors)) break;
+                    }
                 }
 
-                const hasFailed = Object.keys(ctx.failedRules).length > 0;
-                const hasChildren = ctx.childrenErrors.length > 0;
-
-                if (hasFailed || hasChildren) {
+                if (ctx.failedRules || ctx.childrenErrors) {
                     const err: ValidationError = { property: propName };
                     if (atLocation) err.at = atLocation;
-                    if (hasFailed) err.failedRules = ctx.failedRules;
-                    if (hasChildren) err.children = ctx.childrenErrors;
+                    if (ctx.failedRules) err.failedRules = ctx.failedRules;
+                    if (ctx.childrenErrors) err.children = ctx.childrenErrors;
                     errors.push(err);
                 }
             });
@@ -169,6 +197,6 @@ export class Validator {
     }
 }
 
-export function validate(obj: object) {
-    return Validator.default.validate(obj);
+export function validate<T extends object>(obj: T, options?: ValidatorOptions) {
+    return Validator.default.validate(obj, options);
 }

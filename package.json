@@ -18,8 +18,8 @@
   "scripts": {
     "build": "tsc",
     "test": "ts-node ./test/integration.ts",
-    "bench": "ts-node ./test/benchmark.ts",
-    "ctest": "ts-node ./test/customcheck.ts"
+    "ctest": "ts-node ./test/customcheck.ts",
+    "test:cov": "jest --coverage"
   },
   "keywords": [
     "typescript",

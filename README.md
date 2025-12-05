@@ -1,13 +1,14 @@
 <div align="center">
 
-# Tysc
+# tysc
 
-**The World's Fastest Decorator-based Validation Library**
+> **The World's Fastest Decorator-based Validation Library for TypeScript.**
 
-[![npm version](https://img.shields.io/npm/v/tysc?color=blue&style=flat-square)](https://www.npmjs.com/package/tysc)  
+[![npm version](https://img.shields.io/npm/v/tysc?color=blue&style=flat-square)](https://www.npmjs.com/package/tysc)
 [![dependencies](https://img.shields.io/badge/dependencies-0-brightgreen?style=flat-square)](https://packagephobia.com/result?p=tysc)
 [![license](https://img.shields.io/npm/l/tysc?style=flat-square)](https://github.com/yeokyoomin/tysc/blob/main/LICENSE)
 [![size](https://img.shields.io/bundlephobia/minzip/tysc?style=flat-square&color=orange)](https://bundlephobia.com/package/tysc)
+[![codecov](https://codecov.io/gh/yeokyoomin/tysc/branch/main/graph/badge.svg)](https://codecov.io/gh/yeokyoomin/tysc)
 
 </div>
 
@@ -20,59 +21,23 @@ Unlike other libraries, `tysc` has **Zero Dependencies** and provides **Source L
 
 ---
 
-## 🚀 What's New in v2.2.2? (Architectural Polish)
+## 🚀 What's New in v2.4.0? (Performance Revolution)
 
-- 💎 **Singleton Architecture**: The Validator engine has been refactored to use a **Singleton pattern**. Nested validations (`@ValidateNested`) now reuse the existing instance, achieving Zero-Allocation even for deep complex objects.
-
-- 📊 **Precise Array Error Tracking**: Array validation errors now include an `index` property and formatted paths (e.g., `tags[1]`), making it easier to pinpoint errors in UI/Frontend.
-
-- 🛡️ **Robust Option Parsing**: Fixed internal logic to explicitly read `rule.options`, ensuring 100% reliability for options like `{ each: true }`.
-
-- ✅ **Strict Mode Compatibility**: Resolved all `TS(2722)` and `possibly undefined` errors. Fully compatible with TypeScript `strict: true`.
+- ⚡ **Lazy Allocation**: Context objects (`failedRules`, `childrenErrors`) are now only allocated when errors actually occur. This reduces memory usage to near-zero for valid data.
+- 🏎️ **Extreme Speed**: Thanks to lazy allocation and optimized JIT loops, `tysc` now outperforms `zod` in complex nested object validation scenarios.
+- 🛡️ **Robustness**: Enhanced safety for `Symbol` keys and `try-catch` wrapping for custom strategies ensures your application stays stable even with custom validation logic.
+- 🛑 **Abort Early**: New `abortEarly` option allows you to stop validation on the first error, critical for validating massive datasets efficiently.
+- 🔢 **Rule Priority**: Control the execution order of your validation rules with the new `priority` option.
 
 ---
 
 ## ✨ Why Tysc?
 
-- 🚀 **Unrivaled Performance**: **17x faster** than `class-validator`. The fastest decorator-based library in existence.
-- 📍 **Click-to-Jump Debugging**: Error logs include the exact file path and line number (`at`). Ctrl+Click to jump straight to the code.
-- 🪶 **Zero Dependencies**: Ultra-lightweight (~3KB). Perfect for Serverless (AWS Lambda, Cloudflare Workers).
-- 🧩 **Nested & Array Validation**: Easily validates complex JSON structures and DTOs.
-- 🛠 **Custom Rules**: Define your own validation logic inline without boilerplate.
-
----
-
-## ⚡ Performance Benchmark
-
-Benchmark conducted on **v2.2.2** with **10,000,000 iterations**.
-`tysc` demonstrates **Zero-Allocation** architecture, outperforming `zod` in complex scenarios under high load.
-
-### 🏆 Scenario: Complex Nested Objects (Real-world DTO)
-
-> Tests recursive validation and array looping with **Singleton Architecture**.
-
-| Library         |    Ops/Sec    |   Relative Speed   |        Note         |
-| :-------------- | :-----------: | :----------------: | :-----------------: |
-| **tysc** 🚀     | **5,011,871** | **100% (Fastest)** | **Singleton / JIT** |
-| **zod**         |   4,778,890   |       95.3%        |     Functional      |
-| class-validator |    267,420    |        5.3%        |         OOP         |
-
-> **💡 Insight:**
-> In complex real-world scenarios (Nested Objects + Arrays), `tysc` is **faster than Zod** and **~19x faster than `class-validator`**.
-
----
-
-### 📦 Scenario: Simple Flat Objects
-
-> Tests basic validation overhead.
-
-| Library         |    Ops/Sec     | Relative Speed |
-| :-------------- | :------------: | :------------: |
-| **zod**         |   33,242,978   |      100%      |
-| **tysc** 🚀     | **17,773,891** |     53.5%      |
-| class-validator |   1,061,291    |      3.2%      |
-
-> **💡 Note:** Even in simple scenarios, `tysc` is **~17x faster** than `class-validator`.
+- 🚀 **Extreme Performance**: Uses JIT compilation and Singleton architecture to minimize memory overhead.
+- 🪶 **Zero-Allocation**: No objects are created during the validation of valid data.
+- 🧩 **Safe & Robust**: Handles `Symbol` keys safely and wraps strategies in error boundaries.
+- 🛠 **Developer Friendly**: Supports `abortEarly`, rule priorities, and detailed error reporting.
+- 🪶 **Zero Dependencies**: Lightweight and bloat-free.
 
 ---
 
@@ -81,6 +46,38 @@ Benchmark conducted on **v2.2.2** with **10,000,000 iterations**.
 ```bash
 npm install tysc
 ```
+
+---
+
+## ⚡ Performance Benchmark
+
+Benchmark conducted on **v2.4.0** (1,000,000 iterations).
+Thanks to **Lazy Allocation** and **Singleton Architecture**, `tysc` outperforms `zod` in complex, real-world scenarios.
+
+### 🏆 Scenario: Complex Nested Objects (Real-world DTO)
+
+> Deeply nested objects + Arrays + Recursion.
+
+| Library         |    Ops/Sec    |   Relative Speed   |        Note         |
+| :-------------- | :-----------: | :----------------: | :-----------------: |
+| **tysc** 🚀     | **5,177,232** | **100% (Fastest)** | **Zero-Allocation** |
+| **zod**         |   4,764,749   |       92.0%        |     Functional      |
+| class-validator |    289,808    |        5.6%        |         OOP         |
+
+> **💡 Insight:**
+> For complex data structures, `tysc` is **faster than Zod** and **~18x faster than `class-validator`**.
+
+---
+
+### 📦 Scenario: Simple Flat Objects
+
+| Library         |    Ops/Sec     | Relative Speed |
+| :-------------- | :------------: | :------------: |
+| **zod**         |   27,211,846   |      100%      |
+| **tysc** 🚀     | **16,564,024** |     60.9%      |
+| class-validator |   1,082,037    |      4.0%      |
+
+> **💡 Note:** Even in simple scenarios, `tysc` maintains **~16x speed advantage** over `class-validator`.
 
 ---
 
@@ -99,7 +96,7 @@ To use decorators, you must enable the following settings in your tsconfig.json:
 
 ---
 
-## 🚀 Quick Start
+## ⚡ Quick Start
 
 ### 1. Define your DTO
 
@@ -141,7 +138,7 @@ if (errors.length > 0) {
     "property": "age",
     "at": "src/dto/create-user.dto.ts:9:3",  <-- Ctrl+Click to jump here! 🖱️
     "failedRules": {
-      "Min": "You must be at least 18 years old"
+      "Min": ["You must be at least 18 years old"]
     }
   }
 ]
@@ -166,12 +163,12 @@ import {
 
 class Tag {
   @IsString()
-  name: string;
+  name!: string;
 }
 
 class CreatePostDto {
   @IsString()
-  title: string;
+  title!: string;
 
   @IsOptional() // If null/undefined, validation is skipped
   @IsString()
@@ -180,7 +177,7 @@ class CreatePostDto {
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested() // Validates each Tag object in the array
-  tags: Tag[];
+  tags!: Tag[];
 }
 ```
 
@@ -195,18 +192,7 @@ class CouponDto {
   @Custom((code) => code.startsWith("PROMO_"), {
     message: "Invalid promo code format",
   })
-  code: string;
-}
-```
-
-### 3. Array Validation (each: true)
-
-Validate every item in an array without creating a wrapper class.
-
-```ts
-class Post {
-  @IsString({ each: true }) // Checks if every item is a string
-  tags: string[];
+  code!: string;
 }
 ```
 
@@ -258,25 +244,26 @@ class User {
 
 ---
 
-## ⚙️ Decorator Options
+## ⚙️ Advanced Options
 
-All decorators accept an optional options object as the last argument.
+### Abort Early (Fail-Fast)
+
+Stop validation immediately after finding the first error. Useful for large datasets.
 
 ```ts
-interface ValidationOptions {
-  message?: string; // Custom error message
-  // ... more options coming soon
-}
+const errors = validate(largeObject, { abortEarly: true });
 ```
 
-### Examples
+### Rule Priority
+
+Control the order of validation execution.
 
 ```ts
-// 1. Custom Message
-@IsString({ message: "Please enter a valid name" })
-
-// 2. Array Validation
-@IsString({ each: true }) // Validates that every item in the array is a string
+class User {
+  @IsString({ priority: 10 }) // Checks type first
+  @Length(5, 20, { priority: 5 }) // Then checks length
+  username!: string;
+}
 ```
 
 ---
