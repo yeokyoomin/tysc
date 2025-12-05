@@ -86,18 +86,6 @@ export const validationStrategies: Record<string, ValidationStrategy> = {
         return value.length <= max
             ? null
             : `${prop} must contain no more than ${max} elements`;
-    },
-
-    Custom: (value, rule, prop) => {
-        const validatorFn = getConstraint(rule, 0);
-        if (typeof validatorFn !== 'function') return `${prop} validation config error`;
-
-        try {
-            if (validatorFn(value)) return null;
-            return `${prop} failed custom validation`;
-        } catch (e: any) {
-            return `${prop} validation failed: ${e.message}`;
-        }
     }
 };
 
