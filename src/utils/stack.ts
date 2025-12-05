@@ -4,34 +4,33 @@ export function getCallerLocation(): string {
     const stack = new Error().stack;
     if (!stack) return "unknown";
 
-    const stackLines = stack.split('\n');
+    const lines = stack.split("\n").map(s => s.trim());
 
-    let callerLine = stackLines[4];
+    const line = lines.find(l =>
+        l.includes(".ts:") || l.includes(".js:")
+    );
+    if (!line) return "unknown";
 
-    if (!callerLine) {
-        return "unknown";
+    let clean = line;
+
+    if (clean.startsWith("at ")) clean = clean.slice(3);
+
+    const match = clean.match(/\((.*?)\)/);
+    if (match?.[1]) clean = match[1];
+
+    if (clean.startsWith("file://")) {
+        clean = clean.slice(7);
     }
 
-    let cleanLine = callerLine.trim();
+    const isWindows = typeof process !== "undefined" && process.platform === "win32";
 
-    if (cleanLine.startsWith("at ")) {
-        cleanLine = cleanLine.slice(3);
+    if (isWindows && /^\/[A-Z]:/.test(clean)) {
+        clean = clean.slice(1);
     }
 
-    const parenMatch = cleanLine.match(/\((.*?)\)/);
-    if (parenMatch && parenMatch[1]) {
-        cleanLine = parenMatch[1];
+    if (!isWindows && clean.startsWith("/")) {
+        clean = clean.slice(1);
     }
 
-    if (cleanLine.startsWith("file://")) {
-        cleanLine = cleanLine.slice(7);
-    }
-
-    const isWindows = typeof process !== 'undefined' && process.platform === "win32";
-
-    if (isWindows && /^\/[A-Z]:/.test(cleanLine)) {
-        cleanLine = cleanLine.slice(1);
-    }
-
-    return cleanLine;
+    return clean;
 }
