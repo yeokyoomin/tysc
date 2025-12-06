@@ -2,7 +2,7 @@
 
 # tysc
 
-> **The World's Fastest Decorator-Based Validation Library for TypeScript**
+> **The World's Fastest Decorator-based Validation Library for TypeScript.**
 
 [![npm version](https://img.shields.io/npm/v/tysc?color=blue&style=flat-square)](https://www.npmjs.com/package/tysc)
 [![dependencies](https://img.shields.io/badge/dependencies-0-brightgreen?style=flat-square)](https://packagephobia.com/result?p=tysc)
@@ -12,15 +12,23 @@
 
 </div>
 
+<br/>
+
+> **Zod-like Developer Experience. Bare-metal Performance.**
+
+`tysc` is a zero-dependency validation library that combines the **convenience of Zod** with the **speed of JIT compilation**.
+It allows you to validate raw JSON objects directly, ensuring type safety and high performance without the overhead of manual class instantiation.
+
 ---
 
-## 🚀 Why Tysc?
+## ✨ Key Features
 
-- ⚡ **Extreme Performance**: JIT-based execution strategy delivers optimal speed even with complex DTOs.
-- 🪶 **Zero-Allocation Architecture**: No objects are created during the validation of valid data.
-- 🔍 **Instant Debugging**: Track source code locations immediately using the `at` field.
-- 🧩 **Decorator-Based**: Familiar syntax for TypeScript and NestJS developers.
-- 📦 **Zero Dependencies**: Easy to integrate without adding project overhead.
+- **🚀 Extreme Performance**: Uses JIT compilation, Stack Allocation, and Loop Unrolling to outperform even functional libraries like Zod.
+- **🛡️ Direct JSON Validation**: Use `assert()` and `check()` to validate raw JSON directly. No need to manually instantiate classes.
+- **💎 Type Guard Support**: `check(User, body)` automatically narrows the type, telling TypeScript that `body` is `User`.
+- **✂️ Auto-Strip Unknown**: Automatically remove properties that are not defined in your DTO (perfect for API security).
+- **🪶 Zero-Allocation**: No objects are created during the validation of valid data (Lazy Context).
+- **📦 Zero Dependencies**: Lightweight (~3KB) and completely bloat-free.
 
 ---
 
@@ -32,133 +40,58 @@ npm install tysc
 
 ---
 
-## ⚡ Quick Start
+## ⚡Quick Start
+
+### 1. Define your DTO
 
 ```ts
-import { IsString, IsNumber, Min, Max, validate } from "tysc";
+import { IsString, IsNumber, Min, Max } from "tysc";
 
 class CreateUserDto {
   @IsString({ message: "Username is required" })
-  username: string;
+  name!: string;
 
   @IsNumber()
-  @Min(18, { message: "You must be at least 18 years old" })
-  @Max(100)
-  age: number;
+  @Min(18)
+  age!: number;
+}
+```
 
-  constructor(username: string, age: number) {
-    this.username = username;
-    this.age = age;
+### 2. Validate & Transform
+
+Use `assert` to validate, strip unknown keys, and transform JSON in one go.
+
+```ts
+import { assert, ValidationException } from "tysc";
+
+// Incoming JSON request (unknown type)
+const body = { name: "Alice", age: 25, admin: true };
+
+try {
+  // 1. Validates data
+  // 2. Strips unknown properties (e.g., 'admin' is removed)
+  // 3. Returns a typed instance of CreateUserDto
+  const user = assert(CreateUserDto, body, { stripUnknown: true });
+
+  console.log(user.name); // Typed as string!
+  console.log(user); // CreateUserDto { name: "Alice", age: 25 }
+} catch (e) {
+  if (e instanceof ValidationException) {
+    console.error(e.errors); // Detailed error array
   }
 }
-
-const dto = new CreateUserDto("admin", 15);
-const errors = validate(dto);
-
-console.log(errors);
 ```
 
-### Output:
+### 3. Type Guard (Lightweight Check)
 
-```json
-[
-  {
-    "property": "age",
-    "at": "src/dto/create-user.dto.ts:9:3",
-    "failedRules": {
-      "Min": ["You must be at least 18 years old"]
-    }
-  }
-]
-```
-
----
-
-## 📚 Examples
-
-### Nested Objects & Arrays
+Use `check` for simple boolean checks. It uses `abortEarly` internally for maximum speed.
 
 ```ts
-import {
-  IsString,
-  IsArray,
-  ValidateNested,
-  ArrayMinSize,
-  IsOptional,
-} from "tysc";
+import { check } from "tysc";
 
-class Tag {
-  @IsString()
-  name!: string;
-}
-
-class CreatePostDto {
-  @IsString()
-  title!: string;
-
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @IsArray()
-  @ArrayMinSize(1)
-  @ValidateNested()
-  tags!: Tag[];
-}
-```
-
-### Custom Inline Validation
-
-```ts
-import { Custom } from "tysc";
-
-class CouponDto {
-  @Custom((code) => code.startsWith("PROMO_"), {
-    message: "Invalid promo code format",
-  })
-  code!: string;
-}
-```
-
----
-
-## 🛠️ Creating Custom Validators
-
-```ts
-import { createDecorator, registerStrategy, ValidationOptions } from "tysc";
-
-registerStrategy("IsKoreanPhone", (value, rule, prop) => {
-  const regex = /^010-\d{4}-\d{4}$/;
-  if (typeof value !== "string") return `${prop} must be a string`;
-  return regex.test(value) ? null : `${prop} format is invalid`;
-});
-
-export function IsKoreanPhone(options?: ValidationOptions) {
-  return createDecorator("IsKoreanPhone", [], options);
-}
-
-class User {
-  @IsKoreanPhone()
-  phone: string;
-}
-```
-
----
-
-## ⚙️ Advanced Options
-
-- **Abort Early**: Stop validation immediately after the first error.
-- **Rule Priority**: Control the order of validation execution.
-
-```ts
-const errors = validate(largeObject, { abortEarly: true });
-```
-
-```ts
-class User {
-  @IsString({ priority: 10 })
-  @Length(5, 20, { priority: 5 })
-  username!: string;
+if (check(CreateUserDto, body)) {
+  // TypeScript now knows 'body' is CreateUserDto
+  console.log(body.age);
 }
 ```
 
@@ -196,24 +129,91 @@ With **Stack-based Optimization** and **Zero-Allocation** architecture, `tysc` d
 
 ---
 
-## ⚠️ tsconfig.json
+## ⚙️ Advanced Features
 
-```json
-{
-  "compilerOptions": {
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
-  }
+### Abort Early (Fail-Fast)
+
+Stop validation immediately after finding the first error. Useful for saving resources on large datasets.
+
+```ts
+const errors = validate(obj, { abortEarly: true });
+```
+
+### Strip Unknown Properties
+
+Secure your API by automatically removing fields that are not decorated in your DTO.
+
+```ts
+const cleanDto = assert(UserDto, body, { stripUnknown: true });
+```
+
+### Nested Validation
+
+Validate nested objects and arrays of objects easily.
+
+```ts
+class Post {
+  @IsString()
+  title!: string;
+}
+
+class User {
+  @IsArray()
+  @ValidateNested()
+  posts!: Post[];
 }
 ```
 
----
+### Custom Decorators
 
-## 🤝 Contributing
+Register your own high-performance validation logic using `registerStrategy`.
 
-Fork the repository, create a branch, commit, push, and open a pull request.
+```ts
+import { createDecorator, registerStrategy } from "tysc";
 
----
+// 1. Register Logic
+registerStrategy("IsKoreanPhone", (val, rule, prop) => {
+  return /^010-\d{4}-\d{4}$/.test(val) ? null : "Invalid format";
+});
+
+// 2. Create Decorator
+function IsKoreanPhone() {
+  return createDecorator("IsKoreanPhone");
+}
+```
+
+## 📖 API Reference
+
+### Core Functions
+
+`assert(Class, json, options?)`: Validates JSON and returns an instance. Throws `ValidationException` on failure.
+
+`check(Class, json)`: Returns `true` if valid. Acts as a Type Guard.
+
+`validate(instance, options?)`: (Traditional) Validates an existing class instance. Returns `ValidationError[]`.
+
+### Decorators
+
+**Common**: `@IsString`, `@IsNumber`, `@IsBoolean`, `@IsOptional`
+
+**String**: `@IsEmail`, `@Length(min, max)`, `@Matches(regex)`
+
+**Numeric**: `@Min(n)`, `@Max(n)`, `@IsInt`, `@IsPositive`
+
+**Array/Nested**: `@IsArray`, `@ValidateNested`, `@ArrayMinSize`, `@ArrayMaxSize`
+
+## ⚠️ Configuration
+
+To use decorators, you must enable the following settings in your `tsconfig.json`:
+
+```JSON
+{
+"compilerOptions": {
+"experimentalDecorators": true,
+"emitDecoratorMetadata": true
+}
+}
+```
 
 ## 📄 License
 

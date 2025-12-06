@@ -6,6 +6,7 @@ export interface ValidationOptions {
 
 export interface ValidatorOptions {
     abortEarly?: boolean;
+    stripUnknown?: boolean;
 }
 
 export interface ValidationRuleTemplate {
@@ -24,4 +25,22 @@ export interface ValidationError {
     failedRules?: { [key: string]: string[] } | null;
     children?: ValidationError[] | null;
     at?: string | undefined;
+}
+
+export type ClassConstructor<T> = { new(...args: any[]): T };
+export class ValidationException extends Error {
+    constructor(public errors: ValidationError[]) {
+        super(ValidationException.formatMessage(errors));
+        this.name = "ValidationException";
+        Object.setPrototypeOf(this, ValidationException.prototype);
+    }
+
+    private static formatMessage(errors: ValidationError[]): string {
+        if (errors.length === 0) return "Validation Failed";
+        const first = errors[0];
+        const ruleMsg = first!.failedRules
+            ? Object.values(first!.failedRules).flat()[0]
+            : "Unknown error";
+        return `Validation Failed: ${ruleMsg} (and ${errors.length - 1} more errors)`;
+    }
 }

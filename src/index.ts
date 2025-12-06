@@ -1,9 +1,10 @@
-export { validate } from "./core/Validators";
-
-export type { ValidationError, ValidationOptions } from "./core/types";
-
 export * from "./decorators";
-
-export { createDecorator } from "./decorators/common";
+export * from "./core/functions";
+export type {
+    ValidationError,
+    ValidatorOptions,
+    ValidationOptions,
+    ClassConstructor
+} from "./core/types";
+export { ValidationException } from "./core/types";
 export { registerStrategy } from "./core/strategies";
-export type { ValidationStrategy } from "./core/strategies"
