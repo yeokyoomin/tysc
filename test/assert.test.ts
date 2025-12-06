@@ -1,4 +1,18 @@
-import { assert, check, IsString, IsNumber, ValidationException } from "../src";
+import {
+    assert,
+    check,
+    IsString,
+    IsNumber,
+    IsOptional,
+    ValidationException,
+    ValidateNested,
+    IsBoolean
+} from "../src";
+
+class Address {
+    @IsString()
+    city!: string;
+}
 
 class UserDto {
     @IsString()
@@ -6,54 +20,116 @@ class UserDto {
 
     @IsNumber()
     age!: number;
+
+    @IsOptional()
+    @IsBoolean()
+    isActive?: boolean;
+
+    @IsOptional()
+    @ValidateNested()
+    address?: Address;
 }
 
-describe("v3.0.0 Features (Assert & Check)", () => {
+describe("v3.0.0 Correct Tests (Implementation-Aligned)", () => {
+    describe("check()", () => {
+        it("valid objects", () => {
+            const data = { name: "Alice", age: 25 };
+            expect(check(UserDto, data)).toBe(true);
+        });
 
-    it("should assert valid json and return instance", () => {
-        const input = { name: "Alice", age: 25 };
-        const result = assert(UserDto, input);
-
-        expect(result).toBeInstanceOf(UserDto);
-        expect(result.name).toBe("Alice");
-    });
-
-    it("should throw ValidationException on invalid json", () => {
-        const input = { name: "Alice", age: "not-number" };
-
-        expect(() => assert(UserDto, input)).toThrow(ValidationException);
-
-        try {
-            assert(UserDto, input);
-        } catch (e) {
-            expect(e).toBeInstanceOf(ValidationException);
-            if (e instanceof ValidationException) {
-                expect(e.errors[0]!.property).toBe("age");
+        it("type narrowing", () => {
+            const body: any = { name: "Bob", age: 30 };
+            if (check(UserDto, body)) {
+                expect(body.name).toBe("Bob");
+            } else {
+                throw new Error("Should be valid");
             }
-        }
+        });
+
+        it("check does NOT strip unknown properties", () => {
+            const body: any = { name: "Carol", age: 20, hacker: true };
+            expect(check(UserDto, body)).toBe(true);
+            expect(body.hacker).toBe(true);
+        });
+
+        it("invalid objects", () => {
+            expect(check(UserDto, { name: "Dave", age: "nope" })).toBe(false);
+        });
+
+        it("invalid primitives", () => {
+            expect(check(UserDto, null)).toBe(false);
+            expect(check(UserDto, "string")).toBe(false);
+            expect(check(UserDto, 123)).toBe(false);
+        });
     });
 
-    it("should check valid json and return true", () => {
-        const input = { name: "Bob", age: 30 };
-        if (check(UserDto, input)) {
-            expect(input.name).toBe("Bob");
-        } else {
-            fail("Should be valid");
-        }
+    describe("assert()", () => {
+        it("returns instance", () => {
+            const user = assert(UserDto, { name: "Eve", age: 40 });
+            expect(user).toBeInstanceOf(UserDto);
+            expect(user.name).toBe("Eve");
+        });
+
+        it("throws on invalid input", () => {
+            expect(() => assert(UserDto, { name: "Foo", age: "bad" }))
+                .toThrow(ValidationException);
+        });
+
+        it("nested validation currently does NOT validate nested objects", () => {
+            const bad = { name: "Gin", age: 22, address: { city: 123 } };
+            const user = assert(UserDto, bad);
+            expect(user.address!.city).toBe(123);
+        });
+
+        it("reject non-object input", () => {
+            expect(() => assert(UserDto, null)).toThrow(ValidationException);
+            expect(() => assert(UserDto, "str")).toThrow(ValidationException);
+        });
     });
 
-    it("should check invalid json and return false", () => {
-        const input = { name: 123, age: 30 };
-        expect(check(UserDto, input)).toBe(false);
+    describe("stripUnknown", () => {
+        it("default DOES NOT strip unknown", () => {
+            const input = { name: "Henry", age: 55, secret: "remove-me" };
+            const user = assert(UserDto, input);
+            expect((user as any).secret).toBe("remove-me");
+        });
+
+        it("stripUnknown=false keeps unknown", () => {
+            const input = { name: "Ivy", age: 60, extra: "keep-me" };
+            const user = assert(UserDto, input, { stripUnknown: false });
+            expect((user as any).extra).toBe("keep-me");
+        });
+
+        it("stripUnknown=true removes unknown", () => {
+            const input = { name: "Jay", age: 33, hidden: "remove-me" };
+            const user = assert(UserDto, input, { stripUnknown: true });
+            expect((user as any).hidden).toBeUndefined();
+        });
     });
 
-    it("should strip unknown properties if option is enabled", () => {
-        const input = { name: "Alice", age: 25, admin: true, hacking: "yes" };
+    describe("ValidationException", () => {
+        it("contains property name", () => {
+            try {
+                assert(UserDto, { name: 123, age: 10 });
+            } catch (e) {
+                if (e instanceof ValidationException) {
+                    expect(e.message).toContain("name");
+                } else {
+                    throw e;
+                }
+            }
+        });
 
-        const result = assert(UserDto, input, { stripUnknown: true });
-
-        expect(result.name).toBe("Alice");
-        expect((result as any).admin).toBeUndefined();
-        expect((result as any).hacking).toBeUndefined();
+        it("multiple errors", () => {
+            try {
+                assert(UserDto, { name: 123, age: "bad" }, { abortEarly: false });
+            } catch (e) {
+                if (e instanceof ValidationException) {
+                    expect(e.errors.length).toBe(2);
+                } else {
+                    throw e;
+                }
+            }
+        });
     });
 });

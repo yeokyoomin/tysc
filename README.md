@@ -25,8 +25,7 @@ It allows you to validate raw JSON objects directly, ensuring type safety and hi
 
 - **🚀 Extreme Performance**: Uses JIT compilation, Stack Allocation, and Loop Unrolling to outperform even functional libraries like Zod.
 - **🛡️ Direct JSON Validation**: Use `assert()` and `check()` to validate raw JSON directly. No need to manually instantiate classes.
-- **💎 Type Guard Support**: `check(User, body)` automatically narrows the type, telling TypeScript that `body` is `User`.
-- **✂️ Auto-Strip Unknown**: Automatically remove properties that are not defined in your DTO (perfect for API security).
+- **💎 Type Guard Support**: `check(User, body)` validates the object and narrows TypeScript type, but does not remove unknown properties.
 - **🪶 Zero-Allocation**: No objects are created during the validation of valid data (Lazy Context).
 - **📦 Zero Dependencies**: Lightweight (~3KB) and completely bloat-free.
 
@@ -69,8 +68,8 @@ const body = { name: "Alice", age: 25, admin: true };
 
 try {
   // 1. Validates data
-  // 2. Strips unknown properties (e.g., 'admin' is removed)
-  // 3. Returns a typed instance of CreateUserDto
+  // 2. Returns a typed instance of CreateUserDto
+  // 3. Optionally strips unknown properties if { stripUnknown: true } is passed
   const user = assert(CreateUserDto, body, { stripUnknown: true });
 
   console.log(user.name); // Typed as string!
@@ -144,7 +143,9 @@ const errors = validate(obj, { abortEarly: true });
 Secure your API by automatically removing fields that are not decorated in your DTO.
 
 ```ts
-const cleanDto = assert(UserDto, body, { stripUnknown: true });
+const body = { name: "Alice", age: 25, admin: true };
+
+const user = assert(CreateUserDto, body, { stripUnknown: true });
 ```
 
 ### Nested Validation
